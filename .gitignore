@@ -1,0 +1,18 @@
+# Xmake cache
+.xmake/
+build/
+
+# MacOS Cache
+.DS_Store
+
+
+*.db
+*.ipch
+vsxmake2022/.vs/CassouletVoxEngine_3D/v17/DocumentLayout.json
+vsxmake2022/.vs/CassouletVoxEngine_3D/v17/DocumentLayout.backup.json
+*.opendb
+*.db-wal
+*.db-shm
+*.vsidx
+/vsxmake2022
+RegenXmake.bat
