@@ -11,9 +11,9 @@ namespace Voxel
 
     struct Vertex
     {
-        float x;
-        float y;
-        float z;
+        float position[3];
+        float normal[3];
+        float uv[2];
     };
 
     class Mesh

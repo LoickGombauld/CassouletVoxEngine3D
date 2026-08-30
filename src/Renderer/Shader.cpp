@@ -5,182 +5,199 @@
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace Voxel
 {
-    Shader::Shader(
-        const std::string& vertexPath,
-        const std::string& fragmentPath
-    )
-    {
-        const std::string vertexSource =
-            readFile(vertexPath);
+	Shader::Shader(
+		const std::string& vertexPath,
+		const std::string& fragmentPath
+	)
+	{
+		const std::string vertexSource =
+			readFile(vertexPath);
 
-        const std::string fragmentSource =
-            readFile(fragmentPath);
+		const std::string fragmentSource =
+			readFile(fragmentPath);
 
-        const unsigned int vertexShader =
-            compileShader(
-                GL_VERTEX_SHADER,
-                vertexSource
-            );
+		const unsigned int vertexShader =
+			compileShader(
+				GL_VERTEX_SHADER,
+				vertexSource
+			);
 
-        const unsigned int fragmentShader =
-            compileShader(
-                GL_FRAGMENT_SHADER,
-                fragmentSource
-            );
+		const unsigned int fragmentShader =
+			compileShader(
+				GL_FRAGMENT_SHADER,
+				fragmentSource
+			);
 
-        m_programID =
-            createProgram(
-                vertexShader,
-                fragmentShader
-            );
+		m_programID =
+			createProgram(
+				vertexShader,
+				fragmentShader
+			);
 
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
-    }
+		glDeleteShader(vertexShader);
+		glDeleteShader(fragmentShader);
+	}
 
-    Shader::~Shader()
-    {
-        if (m_programID != 0)
-        {
-            glDeleteProgram(m_programID);
-        }
-    }
+	Shader::~Shader()
+	{
+		if (m_programID != 0)
+		{
+			glDeleteProgram(m_programID);
+		}
+	}
 
-    void Shader::bind() const
-    {
-        glUseProgram(m_programID);
-    }
+	void Shader::bind() const
+	{
+		glUseProgram(m_programID);
+	}
 
-    void Shader::unbind() const
-    {
-        glUseProgram(0);
-    }
+	void Shader::unbind() const
+	{
+		glUseProgram(0);
+	}
 
-    unsigned int Shader::getID() const
-    {
-        return m_programID;
-    }
+	unsigned int Shader::getID() const
+	{
+		return m_programID;
+	}
 
-    std::string Shader::readFile(
-        const std::string& path
-    )
-    {
-        std::ifstream file(path);
+	std::string Shader::readFile(
+		const std::string& path
+	)
+	{
+		std::ifstream file(path);
 
-        if (!file.is_open())
-        {
-            throw std::runtime_error(
-                "Failed to open shader: " + path
-            );
-        }
+		if (!file.is_open())
+		{
+			throw std::runtime_error(
+				"Failed to open shader: " + path
+			);
+		}
 
-        std::stringstream buffer;
+		std::stringstream buffer;
 
-        buffer << file.rdbuf();
+		buffer << file.rdbuf();
 
-        return buffer.str();
-    }
+		return buffer.str();
+	}
 
-    unsigned int Shader::compileShader(
-        unsigned int type,
-        const std::string& source
-    )
-    {
-        const char* sourceCode =
-            source.c_str();
+	unsigned int Shader::compileShader(
+		unsigned int type,
+		const std::string& source
+	)
+	{
+		const char* sourceCode =
+			source.c_str();
 
-        const unsigned int shader =
-            glCreateShader(type);
+		const unsigned int shader =
+			glCreateShader(type);
 
-        glShaderSource(
-            shader,
-            1,
-            &sourceCode,
-            nullptr
-        );
+		glShaderSource(
+			shader,
+			1,
+			&sourceCode,
+			nullptr
+		);
 
-        glCompileShader(shader);
+		glCompileShader(shader);
 
-        int success = 0;
+		int success = 0;
 
-        glGetShaderiv(
-            shader,
-            GL_COMPILE_STATUS,
-            &success
-        );
+		glGetShaderiv(
+			shader,
+			GL_COMPILE_STATUS,
+			&success
+		);
 
-        if (!success)
-        {
-            char infoLog[1024];
+		if (!success)
+		{
+			char infoLog[1024];
 
-            glGetShaderInfoLog(
-                shader,
-                sizeof(infoLog),
-                nullptr,
-                infoLog
-            );
+			glGetShaderInfoLog(
+				shader,
+				sizeof(infoLog),
+				nullptr,
+				infoLog
+			);
 
-            glDeleteShader(shader);
+			glDeleteShader(shader);
 
-            throw std::runtime_error(
-                "Shader compilation failed:\n" +
-                std::string(infoLog)
-            );
-        }
+			throw std::runtime_error(
+				"Shader compilation failed:\n" +
+				std::string(infoLog)
+			);
+		}
 
-        return shader;
-    }
+		return shader;
+	}
 
-    unsigned int Shader::createProgram(
-        unsigned int vertexShader,
-        unsigned int fragmentShader
-    )
-    {
-        const unsigned int program =
-            glCreateProgram();
+	unsigned int Shader::createProgram(
+		unsigned int vertexShader,
+		unsigned int fragmentShader
+	)
+	{
+		const unsigned int program =
+			glCreateProgram();
 
-        glAttachShader(
-            program,
-            vertexShader
-        );
+		glAttachShader(
+			program,
+			vertexShader
+		);
 
-        glAttachShader(
-            program,
-            fragmentShader
-        );
+		glAttachShader(
+			program,
+			fragmentShader
+		);
 
-        glLinkProgram(program);
+		glLinkProgram(program);
 
-        int success = 0;
+		int success = 0;
 
-        glGetProgramiv(
-            program,
-            GL_LINK_STATUS,
-            &success
-        );
+		glGetProgramiv(
+			program,
+			GL_LINK_STATUS,
+			&success
+		);
 
-        if (!success)
-        {
-            char infoLog[1024];
+		if (!success)
+		{
+			char infoLog[1024];
 
-            glGetProgramInfoLog(
-                program,
-                sizeof(infoLog),
-                nullptr,
-                infoLog
-            );
+			glGetProgramInfoLog(
+				program,
+				sizeof(infoLog),
+				nullptr,
+				infoLog
+			);
 
-            glDeleteProgram(program);
+			glDeleteProgram(program);
 
-            throw std::runtime_error(
-                "Shader linking failed:\n" +
-                std::string(infoLog)
-            );
-        }
+			throw std::runtime_error(
+				"Shader linking failed:\n" +
+				std::string(infoLog)
+			);
+		}
 
-        return program;
-    }
+		return program;
+	}
+
+	void Shader::setMat4(const char* name, const glm::mat4& matrix) const
+	{
+		const int location =
+			glGetUniformLocation(
+				m_programID,
+				name
+			);
+
+		glUniformMatrix4fv(
+			location,
+			1,
+			GL_FALSE,
+			glm::value_ptr(matrix)
+		);
+	}
 }

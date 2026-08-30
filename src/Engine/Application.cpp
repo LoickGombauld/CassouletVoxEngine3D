@@ -1,10 +1,14 @@
 #include "Application.hpp"
 #include "Window.hpp"
 #include "../Renderer/Renderer.hpp"
+#include "../Renderer/Shader.hpp"
+#include "../Renderer/Mesh.hpp"
 #include <iostream>
 #include <GLFW/glfw3.h>
 #include <chrono>
 #include <glad/glad.h>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/ext/matrix_clip_space.hpp>
 
 const int WIDTH = 1280;
 const int HEIGHT = 720;
@@ -19,6 +23,67 @@ namespace Voxel
 		m_renderer->setViewport(m_window->getWidth(), m_window->getHeight());
 
 		m_renderer->clear(0.08f, 0.12f, 0.18f, 1.0f);
+		m_shader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
+		// Remplacer ces lignes :
+		// std::vector<Vertex> vertices = { { -0.5f, -0.5f, 0.0f }, { 0.5f, -0.5f, 0.0f }, { 0.0f, 0.5f, 0.0f } };
+		// std::vector<unsigned int> indices = { 0, 1, 2 };
+		// par la définition d'un cube :
+
+		std::vector<Vertex> vertices =
+		{
+			// Face +Z (front)
+			{ { -0.5f, -0.5f,  0.5f }, { 0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
+			{ {  0.5f, -0.5f,  0.5f }, { 0.0f,  0.0f,  1.0f }, { 1.0f, 0.0f } },
+			{ {  0.5f,  0.5f,  0.5f }, { 0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } },
+			{ { -0.5f,  0.5f,  0.5f }, { 0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } },
+
+			// Face -Z (back)
+			{ {  0.5f, -0.5f, -0.5f }, { 0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
+			{ { -0.5f, -0.5f, -0.5f }, { 0.0f,  0.0f, -1.0f }, { 1.0f, 0.0f } },
+			{ { -0.5f,  0.5f, -0.5f }, { 0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } },
+			{ {  0.5f,  0.5f, -0.5f }, { 0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } },
+
+			// Face +Y (top)
+			{ { -0.5f,  0.5f,  0.5f }, { 0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
+			{ {  0.5f,  0.5f,  0.5f }, { 0.0f,  1.0f,  0.0f }, { 1.0f, 0.0f } },
+			{ {  0.5f,  0.5f, -0.5f }, { 0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } },
+			{ { -0.5f,  0.5f, -0.5f }, { 0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } },
+
+			// Face -Y (bottom)
+			{ { -0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
+			{ {  0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f,  0.0f }, { 1.0f, 0.0f } },
+			{ {  0.5f, -0.5f,  0.5f }, { 0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } },
+			{ { -0.5f, -0.5f,  0.5f }, { 0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } },
+
+			// Face +X (right)
+			{ {  0.5f, -0.5f,  0.5f }, { 1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+			{ {  0.5f, -0.5f, -0.5f }, { 1.0f,  0.0f,  0.0f }, { 1.0f, 0.0f } },
+			{ {  0.5f,  0.5f, -0.5f }, { 1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
+			{ {  0.5f,  0.5f,  0.5f }, { 1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
+
+			// Face -X (left)
+			{ { -0.5f, -0.5f, -0.5f }, { -1.0f, 0.0f,  0.0f }, { 0.0f, 0.0f } },
+			{ { -0.5f, -0.5f,  0.5f }, { -1.0f, 0.0f,  0.0f }, { 1.0f, 0.0f } },
+			{ { -0.5f,  0.5f,  0.5f }, { -1.0f, 0.0f,  0.0f }, { 1.0f, 1.0f } },
+			{ { -0.5f,  0.5f, -0.5f }, { -1.0f, 0.0f,  0.0f }, { 0.0f, 1.0f } }
+		};
+
+		std::vector<unsigned int> indices =
+		{
+			// front
+			0, 1, 2, 2, 3, 0,
+			// back
+			4, 5, 6, 6, 7, 4,
+			// top
+			8, 9,10,10,11, 8,
+			// bottom
+		   12,13,14,14,15,12,
+		   // right
+		  16,17,18,18,19,16,
+		  // left
+		 20,21,22,22,23,20
+		};
+		m_mesh = std::make_unique<Mesh>(vertices, indices);
 	}
 
 	Application::~Application()
@@ -126,10 +191,32 @@ namespace Voxel
 	void Application::render()
 	{
 		m_renderer->beginFrame();
-		// Rendu graphique.
-		//
-		// Plus tard :
-		// m_world.render();
+		m_shader->bind(); 
+		glm::mat4 model =
+			glm::mat4(1.0f);
+
+		glm::mat4 view =
+			glm::lookAt(
+				glm::vec3(3.0f, 3.0f, 3.0f),
+				glm::vec3(0.0f, 0.0f, 0.0f),
+				glm::vec3(0.0f, 1.0f, 0.0f)
+			);
+
+		glm::mat4 projection =
+			glm::perspective(
+				glm::radians(70.0f),
+				1280.0f / 720.0f,
+				0.1f,
+				1000.0f
+			);
+		m_shader->setMat4("u_Model", model);
+		m_shader->setMat4("u_View", view);
+		m_shader->setMat4("u_Projection", projection);
+
+		m_mesh->bind(); 
+		glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_mesh->getIndexCount()), GL_UNSIGNED_INT, nullptr);
+		m_mesh->unbind();
+		m_shader->unbind();
 		m_renderer->endFrame();
 	}
 

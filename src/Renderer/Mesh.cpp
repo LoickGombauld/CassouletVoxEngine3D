@@ -22,7 +22,25 @@ namespace Voxel
             GL_FLOAT,
             false,
             sizeof(Vertex),
-            nullptr
+            reinterpret_cast<const void*>(offsetof(Vertex, position))
+        );
+
+        m_vertexArray->setAttribute(
+            1, 
+            3,
+            GL_FLOAT,
+            false, 
+            sizeof(Vertex),
+            reinterpret_cast<const void*>(offsetof(Vertex, normal))
+        );
+
+        m_vertexArray->setAttribute(
+            2,
+            2, 
+            GL_FLOAT, 
+            false, 
+            sizeof(Vertex), 
+            reinterpret_cast<const void*>(offsetof(Vertex, uv))
         );
 
         m_indexBuffer->bind();

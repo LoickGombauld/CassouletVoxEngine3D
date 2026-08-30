@@ -3,12 +3,14 @@
 #ifdef _WIN32
 #   include <Windows.h>
 #endif
-
+#include <memory>
 
 namespace Voxel
 {
 	class Window;
 	class Renderer;
+	class Shader;
+	class Mesh;
 
 	class Application
 	{
@@ -36,5 +38,8 @@ namespace Voxel
 
 		float m_lastFrameTime = 0.0f;
 		float m_deltaTime = 0.0f;
+
+		std::unique_ptr<Shader> m_shader;
+		std::unique_ptr<Mesh> m_mesh;
 	};
 }

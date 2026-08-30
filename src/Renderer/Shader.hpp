@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <glm/glm.hpp>
 
 namespace Voxel
 {
@@ -22,6 +23,8 @@ namespace Voxel
         void unbind() const;
 
         unsigned int getID() const;
+
+        void setMat4(const char* name, const glm::mat4& matrix) const;
 
     private:
 
