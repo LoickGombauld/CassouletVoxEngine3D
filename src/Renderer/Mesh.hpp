@@ -25,8 +25,7 @@ namespace Voxel
             const std::vector<unsigned int>& indices
         );
 
-        void bind() const;
-        void unbind() const;
+        void draw() const;
 
         unsigned int getIndexCount() const;
 

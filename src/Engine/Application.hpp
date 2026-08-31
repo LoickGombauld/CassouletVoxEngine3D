@@ -11,6 +11,8 @@ namespace Voxel
 	class Renderer;
 	class Shader;
 	class Mesh;
+	class Input;
+	class Camera;
 
 	class Application
 	{
@@ -34,6 +36,8 @@ namespace Voxel
 
 		Renderer* m_renderer;
 
+		Input* m_input;
+
 		bool m_isRunning = true;
 
 		float m_lastFrameTime = 0.0f;
@@ -41,5 +45,7 @@ namespace Voxel
 
 		std::unique_ptr<Shader> m_shader;
 		std::unique_ptr<Mesh> m_mesh;
+		std::unique_ptr<Camera> m_camera;
+
 	};
 }

@@ -3,6 +3,8 @@
 #include "../Renderer/Renderer.hpp"
 #include "../Renderer/Shader.hpp"
 #include "../Renderer/Mesh.hpp"
+#include "../Input/Input.hpp"
+#include "../Camera/Camera.hpp"
 #include <iostream>
 #include <GLFW/glfw3.h>
 #include <chrono>
@@ -18,16 +20,14 @@ const int HEIGHT = 720;
 namespace Voxel
 {
 	Application::Application() : m_window(new Window(WIDTH, HEIGHT, "Voxel Engine")), m_renderer(new Renderer())
-		, m_isRunning(true), m_deltaTime(0.0f)
+		, m_isRunning(true), m_deltaTime(0.0f), m_input(new Input())
 	{
+		m_camera = std::make_unique<Camera>(glm::vec3(0.0f, 0.0f, 3.0f));
+		m_input->initialize(*m_window);
 		m_renderer->setViewport(m_window->getWidth(), m_window->getHeight());
 
 		m_renderer->clear(0.08f, 0.12f, 0.18f, 1.0f);
 		m_shader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
-		// Remplacer ces lignes :
-		// std::vector<Vertex> vertices = { { -0.5f, -0.5f, 0.0f }, { 0.5f, -0.5f, 0.0f }, { 0.0f, 0.5f, 0.0f } };
-		// std::vector<unsigned int> indices = { 0, 1, 2 };
-		// par la définition d'un cube :
 
 		std::vector<Vertex> vertices =
 		{
@@ -92,51 +92,6 @@ namespace Voxel
 
 	void Application::processInput()
 	{
-
-		if (!m_window->getNativeWindow())
-		{
-			return;
-		}
-
-		// Fermer la fenêtre si ESC est pressé
-		if (glfwGetKey(m_window->getNativeWindow(), GLFW_KEY_ESCAPE) == GLFW_PRESS)
-		{
-			glfwSetWindowShouldClose(m_window->getNativeWindow(), GLFW_TRUE);
-		}
-
-		// Exemples d'inputs de mouvement -- remplacer par gestionnaire d'événements si nécessaire
-		if (glfwGetKey(m_window->getNativeWindow(), GLFW_KEY_W) == GLFW_PRESS)
-		{
-			std::cout << "[Input] W pressed\n";
-		}
-		if (glfwGetKey(m_window->getNativeWindow(), GLFW_KEY_S) == GLFW_PRESS)
-		{
-			std::cout << "[Input] S pressed\n";
-		}
-		if (glfwGetKey(m_window->getNativeWindow(), GLFW_KEY_A) == GLFW_PRESS)
-		{
-			std::cout << "[Input] A pressed\n";
-		}
-		if (glfwGetKey(m_window->getNativeWindow(), GLFW_KEY_D) == GLFW_PRESS)
-		{
-			std::cout << "[Input] D pressed\n";
-		}
-		if (glfwGetKey(m_window->getNativeWindow(), GLFW_KEY_UP) == GLFW_PRESS)
-		{
-			std::cout << "[Input] Up pressed\n";
-		}
-		if (glfwGetKey(m_window->getNativeWindow(), GLFW_KEY_DOWN) == GLFW_PRESS)
-		{
-			std::cout << "[Input] Down pressed\n";
-		}
-		if (glfwGetKey(m_window->getNativeWindow(), GLFW_KEY_LEFT) == GLFW_PRESS)
-		{
-			std::cout << "[Input] Left pressed\n";
-		}
-		if (glfwGetKey(m_window->getNativeWindow(), GLFW_KEY_RIGHT) == GLFW_PRESS)
-		{
-			std::cout << "[Input] Right pressed\n";
-		}
 	}
 
 	void Application::run()
@@ -161,6 +116,8 @@ namespace Voxel
 			if (m_deltaTime > 0.1f)
 				m_deltaTime = 0.1f;
 
+			Input::update();
+
 			processInput();
 
 			update(m_deltaTime);
@@ -181,42 +138,31 @@ namespace Voxel
 		// - génération des chunks
 		// - chargement/déchargement du monde
 		// - animations
-		//
-		// Exemple :
-		//
-		// m_world.update(deltaTime);
-		// m_player.update(deltaTime);
+
+		m_camera->update(deltaTime);
 	}
 
 	void Application::render()
 	{
 		m_renderer->beginFrame();
 		m_shader->bind(); 
-		glm::mat4 model =
-			glm::mat4(1.0f);
 
-		glm::mat4 view =
-			glm::lookAt(
-				glm::vec3(3.0f, 3.0f, 3.0f),
-				glm::vec3(0.0f, 0.0f, 0.0f),
-				glm::vec3(0.0f, 1.0f, 0.0f)
-			);
+		glm::mat4 model = glm::mat4(1.0f);
 
-		glm::mat4 projection =
-			glm::perspective(
-				glm::radians(70.0f),
-				1280.0f / 720.0f,
-				0.1f,
-				1000.0f
-			);
+		glm::mat4 view = m_camera->getViewMatrix();
+
+		const float aspectRatio = static_cast<float>(m_window->getWidth()) / static_cast<float>(m_window->getHeight());
+
+		glm::mat4 projection = m_camera->getProjectionMatrix(aspectRatio);
+
 		m_shader->setMat4("u_Model", model);
 		m_shader->setMat4("u_View", view);
 		m_shader->setMat4("u_Projection", projection);
 
-		m_mesh->bind(); 
-		glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_mesh->getIndexCount()), GL_UNSIGNED_INT, nullptr);
-		m_mesh->unbind();
+		m_mesh->draw();
+
 		m_shader->unbind();
+
 		m_renderer->endFrame();
 	}
 
