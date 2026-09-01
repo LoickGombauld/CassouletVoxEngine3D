@@ -5,6 +5,9 @@
 #include "../Renderer/Mesh.hpp"
 #include "../Input/Input.hpp"
 #include "../Camera/Camera.hpp"
+#include "../World/World.hpp"
+#include "../Voxel/Voxel.hpp"
+#include "../Voxel/Chunk.hpp"
 #include <iostream>
 #include <GLFW/glfw3.h>
 #include <chrono>
@@ -28,6 +31,9 @@ namespace Voxel
 
 		m_renderer->clear(0.08f, 0.12f, 0.18f, 1.0f);
 		m_shader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
+
+		m_world = std::make_unique<World>();
+		m_world->generate();
 
 		std::vector<Vertex> vertices =
 		{
@@ -158,8 +164,8 @@ namespace Voxel
 		m_shader->setMat4("u_Model", model);
 		m_shader->setMat4("u_View", view);
 		m_shader->setMat4("u_Projection", projection);
-
-		m_mesh->draw();
+		m_world->render(view, projection, *m_shader);
+		//m_mesh->draw();
 
 		m_shader->unbind();
 

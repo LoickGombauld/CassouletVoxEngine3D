@@ -1,13 +1,14 @@
 #pragma once
 
 #include <glm/vec3.hpp>
-#include "../Voxel/Voxel.hpp"
-#include "../Renderer/Mesh.hpp"
 #include <memory>
 #include <vector>
 
 namespace Voxel
 {
+	class World;
+	class Mesh;
+
     class Chunk
     {
     public:
@@ -31,7 +32,7 @@ namespace Voxel
         Chunk(const Chunk&) = delete;
         Chunk& operator=(const Chunk&) = delete;
 
-        VoxelID get(
+        std::uint16_t get(
             int x,
             int y,
             int z
@@ -41,7 +42,7 @@ namespace Voxel
             int x,
             int y,
             int z,
-            VoxelID voxel
+            std::uint16_t voxel
         );
 
         bool isInside(
@@ -55,9 +56,11 @@ namespace Voxel
 
         glm::vec3 getWorldPosition() const;
 
-        void rebuildMesh();
+        void rebuildMesh(
+            const World& world
+        );
 
-        void generateTestTerrain();
+        void generateTestTerrain(const World& world);
 
         void render() const;
 
@@ -74,7 +77,7 @@ namespace Voxel
         int m_chunkX;
         int m_chunkZ;
 
-        std::vector<VoxelID> m_voxels;
+        std::vector<std::uint16_t> m_voxels;
 
         std::unique_ptr<Mesh> m_mesh;
     };

@@ -1,11 +1,13 @@
-
 #include "../Voxel/Chunk.hpp"
 
 #include "../Voxel/VoxelMesher.hpp"
 
 #include "../Renderer/Mesh.hpp"
 
-#include <glm/vec3.hpp>
+#include "../World/World.hpp"
+
+#include "../Voxel/Voxel.hpp"
+
 
 namespace Voxel
 {
@@ -98,63 +100,42 @@ namespace Voxel
 		);
 	}
 
-	void Chunk::rebuildMesh()
+	void Chunk::rebuildMesh(
+		const World& world
+	)
 	{
-		m_mesh = VoxelMesher::build(*this);
+		m_mesh =
+			VoxelMesher::build(
+				world,
+				*this
+			);
 	}
 
-	void Chunk::generateTestTerrain()
+	void Chunk::generateTestTerrain(const World& world)
 	{
-		for (
-			int x = 0;
-			x < WIDTH;
-			++x
-			)
+		for (int x = 0; x < WIDTH; ++x)
 		{
-			for (
-				int z = 0;
-				z < DEPTH;
-				++z
-				)
+			for (int z = 0; z < DEPTH; ++z)
 			{
-				for (
-					int y = 0;
-					y < HEIGHT;
-					++y
-					)
+				for (int y = 0; y < HEIGHT; ++y)
 				{
 					if (y == 0)
 					{
-						set(
-							x,
-							y,
-							z,
-							Block::Stone
-						);
+						set(x, y, z, Block::Stone);
 					}
 					else if (y < 3)
 					{
-						set(
-							x,
-							y,
-							z,
-							Block::Dirt
-						);
+						set(x, y, z, Block::Dirt);
 					}
 					else if (y == 3)
 					{
-						set(
-							x,
-							y,
-							z,
-							Block::Grass
-						);
+						set(x, y, z, Block::Grass);
 					}
 				}
 			}
 		}
 
-		rebuildMesh();
+		rebuildMesh(world);
 	}
 
 

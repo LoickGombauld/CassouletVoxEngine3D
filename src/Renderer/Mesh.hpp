@@ -1,5 +1,7 @@
 #pragma once
-
+#include <glad/glad.h>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
 
 #include <vector>
 
@@ -11,9 +13,13 @@ namespace Voxel
 
     struct Vertex
     {
-        float position[3];
-        float normal[3];
-        float uv[2];
+        glm::vec3 position;
+        glm::vec3 normal;
+        glm::vec2 uv;
+
+        float ao;
+
+        float textureIndex;
     };
 
     class Mesh
