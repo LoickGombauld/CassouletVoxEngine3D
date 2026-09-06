@@ -26,6 +26,8 @@ namespace Voxel
 
         void setMat4(const char* name, const glm::mat4& matrix) const;
 
+		void setInt(const char* name, int value) const;
+
     private:
 
         unsigned int compileShader(

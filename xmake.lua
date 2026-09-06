@@ -1,5 +1,5 @@
 add_rules("mode.debug", "mode.release")
-add_requires("glfw","glm","glad")
+add_requires("glfw","glm","glad","stb")
 set_allowedarchs("windows|x64")
 set_warnings("allextra")
 
@@ -12,7 +12,7 @@ target("CassouletVoxEngine_3D")
     set_kind("binary")
     add_files("src/*.cpp","src/**.cpp")
 	add_headerfiles("src/*.hpp","src/**.hpp")
-    add_packages("glfw","glm","glad")
+    add_packages("glfw","glm","glad","stb")
 	
 add_defines("GLFW_INCLUDE_NONE") 
 if is_plat("windows") then 

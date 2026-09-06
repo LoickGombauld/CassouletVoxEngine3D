@@ -3,6 +3,7 @@
 #include "../Renderer/Renderer.hpp"
 #include "../Renderer/Shader.hpp"
 #include "../Renderer/Mesh.hpp"
+#include "../Renderer/Texture.hpp"
 #include "../Input/Input.hpp"
 #include "../Camera/Camera.hpp"
 #include "../World/World.hpp"
@@ -14,6 +15,8 @@
 #include <glad/glad.h>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
+#include <stb_image.h>
+
 
 const int WIDTH = 1280;
 const int HEIGHT = 720;
@@ -23,7 +26,8 @@ const int HEIGHT = 720;
 namespace Voxel
 {
 	Application::Application() : m_window(new Window(WIDTH, HEIGHT, "Voxel Engine")), m_renderer(new Renderer())
-		, m_isRunning(true), m_deltaTime(0.0f), m_input(new Input())
+		, m_isRunning(true), m_deltaTime(0.0f), m_input(new Input()), 
+		m_textureAtlas(std::make_unique<Texture>("assets/textures/atlas.png",false))
 	{
 		m_camera = std::make_unique<Camera>(glm::vec3(0.0f, 0.0f, 3.0f));
 		m_input->initialize(*m_window);
@@ -31,7 +35,8 @@ namespace Voxel
 
 		m_renderer->clear(0.08f, 0.12f, 0.18f, 1.0f);
 		m_shader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
-
+		m_textureAtlas->bind(0);
+		m_shader->setInt("u_TextureAtlas", 0);
 		m_world = std::make_unique<World>();
 		m_world->generate();
 
@@ -152,6 +157,7 @@ namespace Voxel
 	{
 		m_renderer->beginFrame();
 		m_shader->bind(); 
+		m_textureAtlas->bind();
 
 		glm::mat4 model = glm::mat4(1.0f);
 
@@ -164,6 +170,7 @@ namespace Voxel
 		m_shader->setMat4("u_Model", model);
 		m_shader->setMat4("u_View", view);
 		m_shader->setMat4("u_Projection", projection);
+		m_shader->setInt("u_TextureAtlas", 0);
 		m_world->render(view, projection, *m_shader);
 		//m_mesh->draw();
 

@@ -25,11 +25,13 @@ namespace Voxel
 
             int normal = 0;
 
+			int textureIndex = 0;
+
             std::uint8_t ao[4] = {
-                0,
-                0,
-                0,
-                0
+                3,
+                3,
+                3,
+                3
             };
 
             bool valid() const

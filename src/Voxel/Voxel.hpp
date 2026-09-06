@@ -4,94 +4,154 @@
 
 namespace Voxel
 {
-    using VoxelID = std::uint16_t;
+	using VoxelID = std::uint16_t;
 
-    namespace Block
-    {
-        constexpr VoxelID Air = 0;
-        constexpr VoxelID Grass = 1;
-        constexpr VoxelID Dirt = 2;
-        constexpr VoxelID Stone = 3;
-        constexpr VoxelID Sand = 4;
-        constexpr VoxelID Water = 5;
-    }
+	namespace Block
+	{
+		constexpr VoxelID Air = 0;
+		constexpr VoxelID Grass = 1;
+		constexpr VoxelID Dirt = 2;
+		constexpr VoxelID Stone = 3;
+		constexpr VoxelID Sand = 4;
+		constexpr VoxelID Water = 5;
+		constexpr VoxelID Blank = 6;
+	}
 
-    struct BlockInfo
-    {
-        int topTexture;
-        int bottomTexture;
-        int sideTexture;
-    };
-    inline const BlockInfo& getBlockInfo(
-        VoxelID id
-    )
-    {
-        static const BlockInfo air{
-            -1,
-            -1,
-            -1
-        };
+	struct BlockInfo
+	{
+		int texture[6];
+        /*
+		0 = +X SIDE RIGHT
+		1 = -X SIDE LEFT
+        2 = +Y TOP
+		3 = -Y BOTTOM
+		4 = +Z SIDE FRONT
+		5 = -Z SIDE BACK
+        */
+	};
+	inline const BlockInfo& getBlockInfo(
+		VoxelID id
+	)
+	{
+		static const BlockInfo air{
+			-1,
+			-1,
+			-1
+		};
 
-        static const BlockInfo grass{
-            0,
-            1,
-            2
-        };
+		static const BlockInfo grass{
+			1,
+			1,
+			0,
+			3,
+			1,
+			1
 
-        static const BlockInfo dirt{
-            1,
-            1,
-            1
-        };
+		};
 
-        static const BlockInfo stone{
-            3,
-            3,
-            3
-        };
+		static const BlockInfo dirt{
+			2,
+			2,
+			2,
+			2,
+			2
+		};
 
-        static const BlockInfo sand{
-            4,
-            4,
-            4
-        };
+		static const BlockInfo stone{
+			3,
+			3,
+			3,
+			3,
+			3,
+			3
+		};
 
-        static const BlockInfo water{
-            5,
-            5,
-            5
-        };
+		static const BlockInfo sand{
+			4,
+			4,
+			4,
+			4,
+			4,
+			4
+		};
 
-        switch (id)
-        {
-        case Block::Grass:
-            return grass;
+		static const BlockInfo water{
+			5,
+			5,
+			5,
+			5,
+			5,
+			5
+		};
 
-        case Block::Dirt:
-            return dirt;
+		static const BlockInfo blank{
+			6,
+			6,
+			6,
+			6,
+			6,
+			6,
+		};
 
-        case Block::Stone:
-            return stone;
+		switch (id)
+		{
+		case Block::Grass:
+			return grass;
 
-        case Block::Sand:
-            return sand;
+		case Block::Dirt:
+			return dirt;
 
-        case Block::Water:
-            return water;
+		case Block::Stone:
+			return stone;
 
-        default:
-            return air;
-        }
-    }
+		case Block::Sand:
+			return sand;
 
-    inline bool isAir(VoxelID voxel)
-    {
-        return voxel == Block::Air;
-    }
+		case Block::Water:
+			return water;
 
-    inline bool isSolid(VoxelID voxel)
-    {
-        return voxel != Block::Air &&
-            voxel != Block::Water;
-    }
+		case Block::Blank:
+			return blank;
+
+		default:
+			return air;
+		}
+	}
+
+	enum class FaceDirection
+	{
+		PosX = 0,
+		NegX,
+		PosY,
+		NegY,
+		PosZ,
+		NegZ
+	};
+
+	struct UVOrientation
+	{
+		bool flipU;
+		bool flipV;
+	};
+
+	constexpr UVOrientation UV_ORIENTATIONS[6] =
+	{
+		{ false, false }, // +X
+		{ true,  false }, // -X
+		{ false, false }, // +Y
+		{ false, true  }, // -Y
+		{ true,  false }, // +Z
+		{ false, false }  // -Z
+	};
+
+	inline bool isAir(VoxelID voxel)
+	{
+		return voxel == Block::Air;
+	}
+
+	inline bool isSolid(VoxelID voxel)
+	{
+		return voxel != Block::Air &&
+			voxel != Block::Water;
+	}
 }

@@ -43,6 +43,13 @@ namespace Voxel
 			reinterpret_cast<const void*>(offsetof(Vertex, uv))
 		);
 
+		m_vertexArray->setAttribute(4,
+			1,
+			GL_FLOAT,
+			false,
+			sizeof(Vertex),
+			reinterpret_cast<const void*>(offsetof(Vertex, textureIndex)));
+
 		m_indexBuffer->bind();
 
 		m_vertexArray->unbind();
@@ -52,8 +59,8 @@ namespace Voxel
 	{
 		m_vertexArray->bind();
 		glDrawElements(GL_TRIANGLES,
-		static_cast<GLsizei>(m_indexBuffer->getCount())
-		, GL_UNSIGNED_INT, nullptr);
+			static_cast<GLsizei>(m_indexBuffer->getCount())
+			, GL_UNSIGNED_INT, nullptr);
 		m_vertexArray->unbind();
 	}
 

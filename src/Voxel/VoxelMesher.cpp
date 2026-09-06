@@ -85,6 +85,14 @@ namespace Voxel
             if (a.normal != b.normal)
                 return false;
 
+            if (
+                a.textureIndex !=
+                b.textureIndex
+                )
+            {
+                return false;
+            }
+
             for (int i = 0; i < 4; ++i)
             {
                 if (a.ao[i] != b.ao[i])
@@ -461,96 +469,111 @@ namespace Voxel
     );
 }
 
-    void VoxelMesher::addQuad(
-        std::vector<Vertex>& vertices,
-        std::vector<unsigned int>& indices,
+void VoxelMesher::addQuad(
+    std::vector<Vertex>& vertices,
+    std::vector<unsigned int>& indices,
 
-        const glm::vec3& v0,
-        const glm::vec3& v1,
-        const glm::vec3& v2,
-        const glm::vec3& v3,
+    const glm::vec3& v0,
+    const glm::vec3& v1,
+    const glm::vec3& v2,
+    const glm::vec3& v3,
 
-        const glm::vec3& normal,
+    const glm::vec3& normal,
 
-        const Face& face,
+    const Face& face,
 
-        int width,
-        int height
-    )
+    int width,
+    int height
+)
+{
+    const unsigned int start =
+        static_cast<unsigned int>(vertices.size());
+
+    const float w =
+        static_cast<float>(width);
+
+    const float h =
+        static_cast<float>(height);
+
+    const float textureIndex =
+        static_cast<float>(face.textureIndex);
+
+    /*
+        IMPORTANT :
+
+        Les UV sont ici des coordonnées LOCALES
+        à la face.
+
+        Une face 1x1 :
+            0 → 1
+
+        Une face 4x2 :
+            0 → 4
+            0 → 2
+
+        Le fragment shader se chargera ensuite
+        de faire fract() et de sélectionner
+        la bonne tuile dans l'atlas.
+    */
+
+    vertices.push_back({
+        v0,
+        normal,
+        { 0.0f, 0.0f },
+        static_cast<float>(face.ao[0]) / 3.0f,
+        textureIndex
+        });
+
+    vertices.push_back({
+        v1,
+        normal,
+        { w, 0.0f },
+        static_cast<float>(face.ao[1]) / 3.0f,
+        textureIndex
+        });
+
+    vertices.push_back({
+        v2,
+        normal,
+        { w, h },
+        static_cast<float>(face.ao[2]) / 3.0f,
+        textureIndex
+        });
+
+    vertices.push_back({
+        v3,
+        normal,
+        { 0.0f, h },
+        static_cast<float>(face.ao[3]) / 3.0f,
+        textureIndex
+        });
+
+    /*
+        Triangulation selon l'AO.
+    */
+
+    if (face.ao[0] + face.ao[2] >
+        face.ao[1] + face.ao[3])
     {
-        const unsigned int start =
-            static_cast<unsigned int>(
-                vertices.size()
-                );
+        indices.push_back(start + 0);
+        indices.push_back(start + 1);
+        indices.push_back(start + 3);
 
-        const float w =
-            static_cast<float>(width);
-
-        const float h =
-            static_cast<float>(height);
-
-        vertices.push_back({
-            v0,
-            normal,
-            {0.0f, 0.0f},
-            static_cast<float>(face.ao[0]) / 3.0f
-            });
-
-        vertices.push_back({
-            v1,
-            normal,
-            {w, 0.0f},
-            static_cast<float>(face.ao[1]) / 3.0f
-            });
-
-        vertices.push_back({
-            v2,
-            normal,
-            {w, h},
-            static_cast<float>(face.ao[2]) / 3.0f
-            });
-
-        vertices.push_back({
-            v3,
-            normal,
-            {0.0f, h},
-            static_cast<float>(face.ao[3]) / 3.0f
-            });
-
-        /*
-            AO interpolation can produce diagonal artifacts
-            if the quad is triangulated in the wrong direction.
-
-            We choose the diagonal based on the AO values.
-        */
-
-        if (
-            face.ao[0] +
-            face.ao[2]
-            >
-            face.ao[1] +
-            face.ao[3]
-            )
-        {
-            indices.push_back(start + 0);
-            indices.push_back(start + 1);
-            indices.push_back(start + 3);
-
-            indices.push_back(start + 1);
-            indices.push_back(start + 2);
-            indices.push_back(start + 3);
-        }
-        else
-        {
-            indices.push_back(start + 0);
-            indices.push_back(start + 1);
-            indices.push_back(start + 2);
-
-            indices.push_back(start + 2);
-            indices.push_back(start + 3);
-            indices.push_back(start + 0);
-        }
+        indices.push_back(start + 1);
+        indices.push_back(start + 2);
+        indices.push_back(start + 3);
     }
+    else
+    {
+        indices.push_back(start + 0);
+        indices.push_back(start + 1);
+        indices.push_back(start + 2);
+
+        indices.push_back(start + 2);
+        indices.push_back(start + 3);
+        indices.push_back(start + 0);
+    }
+}
 
     std::uint8_t
     VoxelMesher::calculateAO(
@@ -649,20 +672,21 @@ namespace Voxel
 
         face.normal = normal;
 
+
+        const BlockInfo& info =
+            getBlockInfo(
+                face.voxel
+            );
+        face.textureIndex = info.texture[
+            axis * 2 +
+                (normal < 0 ? 1 : 0)
+        ];;
+
         const int uAxis =
             (axis + 1) % 3;
 
         const int vAxis =
             (axis + 2) % 3;
-
-        /*
-            Les quatre sommets du quad sont :
-
-            0 ---- 1
-            |      |
-            |      |
-            3 ---- 2
-        */
 
         face.ao[0] =
             calculateAO(

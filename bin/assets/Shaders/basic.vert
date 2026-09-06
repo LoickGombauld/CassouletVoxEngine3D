@@ -13,7 +13,8 @@ uniform mat4 u_Projection;
 out vec3 v_Normal;
 out vec2 v_UV;
 out float v_AO;
-out float v_TextureIndex;
+
+flat out int v_TextureIndex;
 
 void main()
 {
@@ -23,8 +24,13 @@ void main()
         u_Model *
         vec4(a_Position, 1.0);
 
-    v_Normal = a_Normal;
+    v_Normal =
+        mat3(u_Model) *
+        a_Normal;
+
     v_UV = a_UV;
     v_AO = a_AO;
-    v_TextureIndex = a_TextureIndex;
+
+    v_TextureIndex =
+        int(a_TextureIndex);
 }

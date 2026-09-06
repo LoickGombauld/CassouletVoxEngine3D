@@ -200,4 +200,16 @@ namespace Voxel
 			glm::value_ptr(matrix)
 		);
 	}
+	void Shader::setInt(const char* name, int value) const
+	{
+		const int location =
+			glGetUniformLocation(
+				m_programID,
+				name
+			);
+		glUniform1i(
+			location,
+			value
+		);
+	}
 }
