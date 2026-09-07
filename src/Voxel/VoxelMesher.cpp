@@ -370,39 +370,10 @@ namespace Voxel
                         p[u] = i;
                         p[v] = j;
 
-                        glm::vec3 origin(
-                            static_cast<float>(
-                                p[0]
-                                ),
-                            static_cast<float>(
-                                p[1]
-                                ),
-                            static_cast<float>(
-                                p[2]
-                                )
-                        );
-
                         /*
                             Deux vecteurs correspondant
                             aux dimensions du rectangle.
                         */
-
-                        glm::vec3 duVector =
-                            axisVector(
-                                u,
-                                static_cast<float>(
-                                    width
-                                    )
-                            );
-
-                        glm::vec3 dvVector =
-                            axisVector(
-                                v,
-                                static_cast<float>(
-                                    height
-                                    )
-                            );
-
                         glm::vec3 normal =
                             axisVector(
                                 d,
@@ -411,15 +382,60 @@ namespace Voxel
                                     )
                             );
 
+                        const FaceBasis basis =
+                            getFaceBasis(
+                                d,
+                                current.normal
+                            );
+
+                        glm::vec3 duVector =
+                            axisVector(
+                                basis.uAxis,
+                                static_cast<float>(
+                                    basis.uSign * width
+                                    )
+                            );
+
+                        glm::vec3 dvVector =
+                            axisVector(
+                                basis.vAxis,
+                                static_cast<float>(
+                                    basis.vSign * height
+                                    )
+                            );
+
+                        glm::vec3 origin = glm::vec3(
+                            static_cast<float>(p[0]),
+                            static_cast<float>(p[1]),
+                            static_cast<float>(p[2])
+                        );
+
+                        /*
+                            Lorsque U ou V est négatif,
+                            origin doit être déplacé pour que
+                            le rectangle reste correctement placé.
+                        */
+
+                        if (basis.uSign < 0)
+                        {
+                            origin -= axisVector(
+                                basis.uAxis,
+                                static_cast<float>(width)
+                            );
+                        }
+
+                        if (basis.vSign < 0)
+                        {
+                            origin -= axisVector(
+                                basis.vAxis,
+                                static_cast<float>(height)
+                            );
+                        }
+
                         glm::vec3 v0 = origin;
                         glm::vec3 v1 = origin + duVector;
                         glm::vec3 v2 = origin + duVector + dvVector;
                         glm::vec3 v3 = origin + dvVector;
-
-                        if (current.normal < 0)
-                        {
-                            std::swap(v1, v3);
-                        }
 
                         addQuad(
                             vertices,
@@ -677,16 +693,25 @@ void VoxelMesher::addQuad(
             getBlockInfo(
                 face.voxel
             );
-        face.textureIndex = info.texture[
-            axis * 2 +
-                (normal < 0 ? 1 : 0)
-        ];;
+        const int faceIndex =
+            axis * 2 + (normal < 0 ? 1 : 0);
+
+        face.textureIndex =
+            info.texture[faceIndex];
+        const FaceBasis basis =
+            getFaceBasis(axis, normal);
 
         const int uAxis =
-            (axis + 1) % 3;
+            basis.uAxis;
 
         const int vAxis =
-            (axis + 2) % 3;
+            basis.vAxis;
+
+        const int uSign =
+            basis.uSign;
+
+        const int vSign =
+            basis.vSign;
 
         face.ao[0] =
             calculateAO(
@@ -697,8 +722,8 @@ void VoxelMesher::addQuad(
                 axis,
                 uAxis,
                 vAxis,
-                -1,
-                -1
+                -uSign,
+                -vSign
             );
 
         face.ao[1] =
@@ -710,8 +735,8 @@ void VoxelMesher::addQuad(
                 axis,
                 uAxis,
                 vAxis,
-                +1,
-                -1
+                +uSign,
+                -vSign
             );
 
         face.ao[2] =
@@ -723,8 +748,8 @@ void VoxelMesher::addQuad(
                 axis,
                 uAxis,
                 vAxis,
-                +1,
-                +1
+                +uSign,
+                +vSign
             );
 
         face.ao[3] =
@@ -736,8 +761,8 @@ void VoxelMesher::addQuad(
                 axis,
                 uAxis,
                 vAxis,
-                -1,
-                +1
+                -uSign,
+                +vSign
             );
 
         return face;

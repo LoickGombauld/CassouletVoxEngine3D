@@ -40,6 +40,52 @@ namespace Voxel
             }
         };
 
+        struct FaceBasis
+        {
+            int uAxis;
+            int uSign;
+
+            int vAxis;
+            int vSign;
+        };
+
+       static FaceBasis getFaceBasis(int axis, int normal)
+        {
+            /*
+                Convention :
+
+                +X : U = +Z, V = +Y
+                -X : U = -Z, V = +Y
+
+                +Y : U = +X, V = +Z
+                -Y : U = +X, V = -Z
+
+                +Z : U = -X, V = +Y
+                -Z : U = +X, V = +Y
+            */
+
+            if (axis == 0)
+            {
+                if (normal > 0)
+                    return { 2, +1, 1, +1 };
+
+                return { 2, -1, 1, +1 };
+            }
+
+            if (axis == 1)
+            {
+                if (normal > 0)
+                    return { 0, +1, 2, +1 };
+
+                return { 0, +1, 2, -1 };
+            }
+
+            if (normal > 0)
+                return { 0, -1, 1, +1 };
+
+            return { 0, +1, 1, +1 };
+        }
+
 
         static std::unique_ptr<Mesh> build(
             const World& world,

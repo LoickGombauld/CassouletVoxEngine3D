@@ -29,94 +29,109 @@ namespace Voxel
 		5 = -Z SIDE BACK
         */
 	};
-	inline const BlockInfo& getBlockInfo(
-		VoxelID id
-	)
-	{
-		static const BlockInfo air{
-			-1,
-			-1,
-			-1
-		};
+    inline const BlockInfo& getBlockInfo(VoxelID id)
+    {
+        static const BlockInfo air{
+            {
+                -1, // +X
+                -1, // -X
+                -1, // +Y
+                -1, // -Y
+                -1, // +Z
+                -1  // -Z
+            }
+        };
 
-		static const BlockInfo grass{
-			1,
-			1,
-			0,
-			3,
-			1,
-			1
+        static const BlockInfo grass{
+            {
+                1, // +X
+                1, // -X
+                0, // +Y
+                3, // -Y
+                1, // +Z
+                1  // -Z
+            }
+        };
 
-		};
+        static const BlockInfo dirt{
+            {
+                2, // +X
+                2, // -X
+                2, // +Y
+                2, // -Y
+                2, // +Z
+                2  // -Z
+            }
+        };
 
-		static const BlockInfo dirt{
-			2,
-			2,
-			2,
-			2,
-			2
-		};
+        static const BlockInfo stone{
+            {
+                3, // +X
+                3, // -X
+                3, // +Y
+                3, // -Y
+                3, // +Z
+                3  // -Z
+            }
+        };
 
-		static const BlockInfo stone{
-			3,
-			3,
-			3,
-			3,
-			3,
-			3
-		};
+        static const BlockInfo sand{
+            {
+                4, // +X
+                4, // -X
+                4, // +Y
+                4, // -Y
+                4, // +Z
+                4  // -Z
+            }
+        };
 
-		static const BlockInfo sand{
-			4,
-			4,
-			4,
-			4,
-			4,
-			4
-		};
+        static const BlockInfo water{
+            {
+                5, // +X
+                5, // -X
+                5, // +Y
+                5, // -Y
+                5, // +Z
+                5  // -Z
+            }
+        };
 
-		static const BlockInfo water{
-			5,
-			5,
-			5,
-			5,
-			5,
-			5
-		};
+        static const BlockInfo blank{
+            {
+                6, // +X
+                6, // -X
+                6, // +Y
+                6, // -Y
+                6, // +Z
+                6  // -Z
+            }
+        };
 
-		static const BlockInfo blank{
-			6,
-			6,
-			6,
-			6,
-			6,
-			6,
-		};
+        switch (id)
+        {
+        case Block::Grass:
+            return grass;
 
-		switch (id)
-		{
-		case Block::Grass:
-			return grass;
+        case Block::Dirt:
+            return dirt;
 
-		case Block::Dirt:
-			return dirt;
+        case Block::Stone:
+            return stone;
 
-		case Block::Stone:
-			return stone;
+        case Block::Sand:
+            return sand;
 
-		case Block::Sand:
-			return sand;
+        case Block::Water:
+            return water;
 
-		case Block::Water:
-			return water;
+        case Block::Blank:
+            return blank;
 
-		case Block::Blank:
-			return blank;
-
-		default:
-			return air;
-		}
-	}
+        default:
+            return air;
+        }
+    }
 
 	enum class FaceDirection
 	{

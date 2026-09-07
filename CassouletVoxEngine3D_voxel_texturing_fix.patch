@@ -1,0 +1,172 @@
+*** Begin Patch
+*** Update File: src/Voxel/Voxel.hpp
+@@
+ 	inline const BlockInfo& getBlockInfo(
+ 		VoxelID id
+ 	)
+ 	{
+ 		static const BlockInfo air{
+ 			-1,
+ 			-1,
+-			-1
++			-1,
++			-1,
++			-1,
++			-1
+ 		};
+@@
+ 		static const BlockInfo dirt{
+ 			2,
+ 			2,
+ 			2,
+ 			2,
+-			2
++			2,
++			2
+ 		};
+@@
+-	enum class FaceDirection
+-	{
+-		PosX = 0,
+-		NegX,
+-		PosY,
+-		NegY,
+-		PosZ,
+-		NegZ
+-	};
+-
+-	struct UVOrientation
+-	{
+-		bool flipU;
+-		bool flipV;
+-	};
+-
+-	constexpr UVOrientation UV_ORIENTATIONS[6] =
+-	{
+-		{ false, false }, // +X
+-		{ true,  false }, // -X
+-		{ false, false }, // +Y
+-		{ false, true  }, // -Y
+-		{ true,  false }, // +Z
+-		{ false, false }  // -Z
+-	};
+-
+*** Update File: src/Voxel/VoxelMesher.cpp
+@@
+-						glm::vec3 duVector =
++						glm::vec3 duVector =
+ 							axisVector(
+ 								u,
+ 								static_cast<float>(
+ 									width
+ 									)
+ 							);
+@@
+-						glm::vec3 v0 = origin;
+-						glm::vec3 v1 = origin + duVector;
+-						glm::vec3 v2 = origin + duVector + dvVector;
+-						glm::vec3 v3 = origin + dvVector;
+-
+-						if (current.normal < 0)
+-						{
+-							std::swap(v1, v3);
+-						}
++						/*
++							For a negative face, reverse the U basis
++							instead of swapping already-generated vertices.
++
++							This keeps geometry, UVs and AO attached to
++							the same logical corner and guarantees that
++							cross(du, dv) matches the face normal.
++						*/
++						if (current.normal < 0)
++						{
++							origin += duVector;
++							duVector = -duVector;
++						}
++
++						glm::vec3 v0 = origin;
++						glm::vec3 v1 = origin + duVector;
++						glm::vec3 v2 = origin + duVector + dvVector;
++						glm::vec3 v3 = origin + dvVector;
+*** Update File: src/Renderer/Mesh.cpp
+@@
+ 		m_vertexArray->setAttribute(
+ 			2,
+ 			2,
+ 			GL_FLOAT,
+@@
+ 			reinterpret_cast<const void*>(offsetof(Vertex, uv))
+ 		);
++
++		m_vertexArray->setAttribute(
++			3,
++			1,
++			GL_FLOAT,
++			false,
++			sizeof(Vertex),
++			reinterpret_cast<const void*>(offsetof(Vertex, ao))
++		);
+ 		m_vertexArray->setAttribute(4,
+*** Update File: bin/assets/Shaders/basic.frag
+@@
+-const int ATLAS_COLUMNS = 16;
+-
+-const int ATLAS_ROWS = 16;
++const int ATLAS_COLUMNS = 16;
++const int ATLAS_ROWS = 16;
++const int ATLAS_WIDTH = 256;
++const int ATLAS_HEIGHT = 256;
++const int TILE_WIDTH = 16;
++const int TILE_HEIGHT = 16;
+@@
+ vec2 getAtlasUV(
+@@
+ }
++
++vec4 sampleAtlas(
++    vec2 localUV,
++    int textureIndex
++)
++{
++    vec2 wrapped = fract(localUV);
++
++    int column = textureIndex % ATLAS_COLUMNS;
++    int row = textureIndex / ATLAS_COLUMNS;
++
++    int localX = int(floor(wrapped.x * float(TILE_WIDTH)));
++    int localY = int(floor(wrapped.y * float(TILE_HEIGHT)));
++
++    localX = clamp(localX, 0, TILE_WIDTH - 1);
++    localY = clamp(localY, 0, TILE_HEIGHT - 1);
++
++    ivec2 texel = ivec2(
++        column * TILE_WIDTH + localX,
++        row * TILE_HEIGHT + localY
++    );
++
++    return texelFetch(
++        u_TextureAtlas,
++        texel,
++        0
++    );
++}
+@@
+-vec4 color =
+-
+-    texture(
+-        u_TextureAtlas,
+-        atlasUV
+-    );
++vec4 color = sampleAtlas(
++    v_UV,
++    v_TextureIndex
++);
+*** Update File: src/Engine/Application.cpp
+@@
+-m_textureAtlas(std::make_unique<Texture>("assets/textures/atlas.png",false))
++m_textureAtlas(std::make_unique<Texture>("assets/Textures/atlas.png",false))
+@@
+-m_shader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
++m_shader = std::make_unique<Shader>("assets/Shaders/basic.vert", "assets/Shaders/basic.frag");
+*** End Patch

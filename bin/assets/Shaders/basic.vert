@@ -18,6 +18,11 @@ flat out int v_TextureIndex;
 
 void main()
 {
+
+v_UV = a_UV;
+v_AO = a_AO;
+v_TextureIndex = int(a_TextureIndex);
+
     gl_Position =
         u_Projection *
         u_View *

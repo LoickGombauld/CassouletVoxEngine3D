@@ -16,39 +16,11 @@ namespace Voxel
 
 		m_vertexBuffer->bind();
 
-		m_vertexArray->setAttribute(
-			0,
-			3,
-			GL_FLOAT,
-			false,
-			sizeof(Vertex),
-			reinterpret_cast<const void*>(offsetof(Vertex, position))
-		);
-
-		m_vertexArray->setAttribute(
-			1,
-			3,
-			GL_FLOAT,
-			false,
-			sizeof(Vertex),
-			reinterpret_cast<const void*>(offsetof(Vertex, normal))
-		);
-
-		m_vertexArray->setAttribute(
-			2,
-			2,
-			GL_FLOAT,
-			false,
-			sizeof(Vertex),
-			reinterpret_cast<const void*>(offsetof(Vertex, uv))
-		);
-
-		m_vertexArray->setAttribute(4,
-			1,
-			GL_FLOAT,
-			false,
-			sizeof(Vertex),
-			reinterpret_cast<const void*>(offsetof(Vertex, textureIndex)));
+		m_vertexArray->setAttribute(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, position)));
+		m_vertexArray->setAttribute(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, normal)));
+		m_vertexArray->setAttribute(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, uv)));
+		m_vertexArray->setAttribute(3, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, ao)));
+		m_vertexArray->setAttribute(4, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, textureIndex)));
 
 		m_indexBuffer->bind();
 
