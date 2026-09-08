@@ -19,7 +19,7 @@ namespace Voxel
         m_fov(70.0f),
         m_nearPlane(0.1f),
         m_farPlane(1000.0f),
-        m_moveSpeed(5.0f),
+        m_moveSpeed(10.0f),
         m_mouseSensitivity(0.1f)
     {
         updateVectors();

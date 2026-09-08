@@ -508,25 +508,70 @@ void VoxelMesher::addQuad(
             face.textureIndex
             );
 
-    UVOrientation orientation =
+    const UVOrientation orientation =
         UV_ORIENTATIONS[faceIndex];
 
-    float texU0 = 0.0f;
-    float texU1 = w;
+    /*
+        Coordonnées du quad dans le repère
+        géométrique utilisé par le Greedy Mesher.
+    */
 
-    float texV0 = 0.0f;
-    float texV1 = h;
+    float aU = 0.0f;
+    float bU = w;
+
+    float aV = 0.0f;
+    float bV = h;
+
+    /*
+        Permutation U <-> V.
+    */
+
+    float uv00;
+    float uv10;
+    float uv01;
+    float uv11;
+
+    if (orientation.swapUV)
+    {
+        uv00 = aV;
+        uv10 = bV;
+
+        uv01 = aU;
+        uv11 = bU;
+    }
+    else
+    {
+        uv00 = aU;
+        uv10 = bU;
+
+        uv01 = aV;
+        uv11 = bV;
+    }
+
+    /*
+        Flip U.
+    */
 
     if (orientation.flipU)
-        std::swap(texU0, texU1);
+    {
+        std::swap(uv00, uv10);
+        std::swap(uv01, uv11);
+    }
+
+    /*
+        Flip V.
+    */
 
     if (orientation.flipV)
-        std::swap(texV0, texV1);
+    {
+        std::swap(uv00, uv01);
+        std::swap(uv10, uv11);
+    }
 
     vertices.push_back({
         v0,
         normal,
-        { texU0, texV0 },
+        { uv00, uv01 },
         static_cast<float>(
             face.ao[0]
         ) / 3.0f,
@@ -536,7 +581,7 @@ void VoxelMesher::addQuad(
     vertices.push_back({
         v1,
         normal,
-        { texU1, texV0 },
+        { uv10, uv01 },
         static_cast<float>(
             face.ao[1]
         ) / 3.0f,
@@ -546,7 +591,7 @@ void VoxelMesher::addQuad(
     vertices.push_back({
         v2,
         normal,
-        { texU1, texV1 },
+        { uv10, uv11 },
         static_cast<float>(
             face.ao[2]
         ) / 3.0f,
@@ -556,7 +601,7 @@ void VoxelMesher::addQuad(
     vertices.push_back({
         v3,
         normal,
-        { texU0, texV1 },
+        { uv00, uv11 },
         static_cast<float>(
             face.ao[3]
         ) / 3.0f,

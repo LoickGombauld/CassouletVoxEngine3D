@@ -47,7 +47,7 @@ namespace Voxel
                 1, // +X
                 1, // -X
                 0, // +Y
-                3, // -Y
+                1, // -Y
                 1, // +Z
                 1  // -Z
             }
@@ -143,21 +143,24 @@ namespace Voxel
 		NegZ
 	};
 
-	struct UVOrientation
-	{
-		bool flipU;
-		bool flipV;
-	};
+    struct UVOrientation
+    {
+        bool swapUV;
+        bool flipU;
+        bool flipV;
+    };
 
-	constexpr UVOrientation UV_ORIENTATIONS[6] =
-	{
-		{ false, false }, // +X
-		{ true,  false }, // -X
-		{ false, false }, // +Y
-		{ false, true  }, // -Y
-		{ true,  false }, // +Z
-		{ false, false }  // -Z
-	};
+    constexpr UVOrientation UV_ORIENTATIONS[6] =
+    {
+        { true,  true,  false }, // +X
+        { true,  false, false }, // -X
+
+        { true,  false, false }, // +Y
+        { true,  false, true  }, // -Y
+
+        { false, false, false }, // +Z
+        { false, true,  false }  // -Z
+    };
 
 	inline bool isAir(VoxelID voxel)
 	{
