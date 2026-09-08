@@ -28,52 +28,6 @@ namespace Voxel
             int z;
         };
 
-        struct FaceBasis
-        {
-            int uAxis;
-            int uSign;
-
-            int vAxis;
-            int vSign;
-        };
-
-        FaceBasis getFaceBasis(int axis, int normal)
-        {
-            /*
-                Convention :
-
-                +X : U = +Z, V = +Y
-                -X : U = -Z, V = +Y
-
-                +Y : U = +X, V = +Z
-                -Y : U = +X, V = -Z
-
-                +Z : U = -X, V = +Y
-                -Z : U = +X, V = +Y
-            */
-
-            if (axis == 0)
-            {
-                if (normal > 0)
-                    return { 2, +1, 1, +1 };
-
-                return { 2, -1, 1, +1 };
-            }
-
-            if (axis == 1)
-            {
-                if (normal > 0)
-                    return { 0, +1, 2, +1 };
-
-                return { 0, +1, 2, -1 };
-            }
-
-            if (normal > 0)
-                return { 0, -1, 1, +1 };
-
-            return { 0, +1, 1, +1 };
-        }
-
         Axis makeAxis(
             int axis,
             int value
@@ -609,29 +563,57 @@ void VoxelMesher::addQuad(
         textureIndex
         });
 
-    if (
-        face.ao[0] + face.ao[2] >
-        face.ao[1] + face.ao[3]
-        )
-    {
-        indices.push_back(start + 0);
-        indices.push_back(start + 1);
-        indices.push_back(start + 3);
+    const bool negativeFace =
+        (faceIndex % 2) == 1;
 
-        indices.push_back(start + 1);
-        indices.push_back(start + 2);
-        indices.push_back(start + 3);
+    if (face.ao[0] + face.ao[2] >
+        face.ao[1] + face.ao[3])
+    {
+        if (!negativeFace)
+        {
+            indices.push_back(start + 0);
+            indices.push_back(start + 1);
+            indices.push_back(start + 3);
+
+            indices.push_back(start + 1);
+            indices.push_back(start + 2);
+            indices.push_back(start + 3);
+        }
+        else
+        {
+            indices.push_back(start + 0);
+            indices.push_back(start + 3);
+            indices.push_back(start + 1);
+
+            indices.push_back(start + 1);
+            indices.push_back(start + 3);
+            indices.push_back(start + 2);
+        }
     }
     else
     {
-        indices.push_back(start + 0);
-        indices.push_back(start + 1);
-        indices.push_back(start + 2);
+        if (!negativeFace)
+        {
+            indices.push_back(start + 0);
+            indices.push_back(start + 1);
+            indices.push_back(start + 2);
 
-        indices.push_back(start + 2);
-        indices.push_back(start + 3);
-        indices.push_back(start + 0);
+            indices.push_back(start + 2);
+            indices.push_back(start + 3);
+            indices.push_back(start + 0);
+        }
+        else
+        {
+            indices.push_back(start + 0);
+            indices.push_back(start + 2);
+            indices.push_back(start + 1);
+
+            indices.push_back(start + 2);
+            indices.push_back(start + 0);
+            indices.push_back(start + 3);
+        }
     }
+
 }
     std::uint8_t
     VoxelMesher::calculateAO(
