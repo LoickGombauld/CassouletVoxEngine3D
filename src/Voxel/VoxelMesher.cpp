@@ -61,20 +61,6 @@ namespace Voxel
             return { 0.0f, 0.0f, value };
         }
 
-        int getWorldAxisOffset(
-            int axis,
-            int chunkOriginX,
-            int chunkOriginZ
-        )
-        {
-            if (axis == 0)
-                return chunkOriginX;
-
-            if (axis == 2)
-                return chunkOriginZ;
-
-            return 0;
-        }
 
         int getComponent(
             const Axis& value,
@@ -435,19 +421,7 @@ namespace Voxel
                         glm::vec3 v1 = origin + duVector;
                         glm::vec3 v2 = origin + duVector + dvVector;
                         glm::vec3 v3 = origin + dvVector;
-                        const int worldU =
-                            getWorldAxisOffset(
-                                u,
-                                originX,
-                                originZ
-                            ) + i;
 
-                        const int worldV =
-                            getWorldAxisOffset(
-                                v,
-                                originX,
-                                originZ
-                            ) + j;
                         addQuad(
                             vertices,
                             indices,
@@ -458,14 +432,18 @@ namespace Voxel
                             v3,
 
                             normal,
-
                             current,
 
                             width,
                             height,
-							getFaceIndex(normal),
-                            worldU,
-							worldV
+
+                            getFaceIndex(normal),
+
+                            glm::vec3(
+                                static_cast<float>(originX + p[0]),
+                                static_cast<float>(p[1]),
+                                static_cast<float>(originZ + p[2])
+                            )
                         );
 
                         /*
@@ -502,14 +480,14 @@ namespace Voxel
 
 //
 
-void VoxelMesher::addQuad(
+ void VoxelMesher::addQuad(
     std::vector<Vertex>& vertices,
     std::vector<unsigned int>& indices,
 
-    const glm::vec3& v0,
-    const glm::vec3& v1,
-    const glm::vec3& v2,
-    const glm::vec3& v3,
+    const glm::vec3& gv0,
+    const glm::vec3& gv1,
+    const glm::vec3& gv2,
+    const glm::vec3& gv3,
 
     const glm::vec3& normal,
 
@@ -519,8 +497,8 @@ void VoxelMesher::addQuad(
     int height,
 
     int faceIndex,
-    int worldUOffset,
-    int worldVOffset
+
+    const glm::vec3& worldOrigin
 )
 {
     const unsigned int start =
@@ -542,104 +520,81 @@ void VoxelMesher::addQuad(
     const UVOrientation orientation =
         UV_ORIENTATIONS[faceIndex];
 
-    /*
-        Coordonnées du quad dans le repère
-        géométrique utilisé par le Greedy Mesher.
-    */
+    auto worldAxisValue =
+        [&](int axis) -> float
+        {
+            if (axis == 0)
+                return worldOrigin.x;
 
-    float aU = static_cast<float>(worldUOffset);
-    float bU = static_cast<float>(
-            worldUOffset + width
-            );
+            if (axis == 1)
+                return worldOrigin.y;
 
-    float aV = static_cast<float>(worldVOffset);
-    float bV = static_cast<float>(
-        worldVOffset + height
-        );;
+            return worldOrigin.z;
+        };
 
-    /*
-        Permutation U <-> V.
-    */
+    const float uStart =
+        worldAxisValue(orientation.uAxis);
 
-    float uv00;
-    float uv10;
-    float uv01;
-    float uv11;
+    const float vStart =
+        worldAxisValue(orientation.vAxis);
 
-    if (orientation.swapUV)
+    float u0;
+    float u1;
+
+    if (orientation.uSign > 0)
     {
-        uv00 = aV;
-        uv10 = bV;
-
-        uv01 = aU;
-        uv11 = bU;
+        u0 = uStart;
+        u1 = uStart + w;
     }
     else
     {
-        uv00 = aU;
-        uv10 = bU;
-
-        uv01 = aV;
-        uv11 = bV;
+        u0 = uStart + w;
+        u1 = uStart;
     }
 
-    /*
-        Flip U.
-    */
+    float v0;
+    float v1;
 
-    if (orientation.flipU)
+    if (orientation.vSign > 0)
     {
-        std::swap(uv00, uv10);
-        std::swap(uv01, uv11);
+        v0 = vStart;
+        v1 = vStart + h;
     }
-
-    /*
-        Flip V.
-    */
-
-    if (orientation.flipV)
+    else
     {
-        std::swap(uv00, uv01);
-        std::swap(uv10, uv11);
+        v0 = vStart + h;
+        v1 = vStart;
     }
 
     vertices.push_back({
-        v0,
+     gv0,
+     normal,
+     { u0, v0 },
+     static_cast<float>(face.ao[0]) / 3.0f,
+     textureIndex
+        });
+
+    vertices.push_back({
+        gv1,
         normal,
-        { uv00, uv01 },
-        static_cast<float>(
-            face.ao[0]
-        ) / 3.0f,
+        { u1, v0 },
+        static_cast<float>(face.ao[1]) / 3.0f,
         textureIndex
         });
 
     vertices.push_back({
-        v1,
+        gv2,
         normal,
-        { uv10, uv01 },
-        static_cast<float>(
-            face.ao[1]
-        ) / 3.0f,
+        { u1, v1 },
+        static_cast<float>(face.ao[2]) / 3.0f,
         textureIndex
         });
 
     vertices.push_back({
-        v2,
+        gv3,
         normal,
-        { uv10, uv11 },
-        static_cast<float>(
-            face.ao[2]
-        ) / 3.0f,
-        textureIndex
-        });
-
-    vertices.push_back({
-        v3,
-        normal,
-        { uv00, uv11 },
-        static_cast<float>(
-            face.ao[3]
-        ) / 3.0f,
+        { u0, v1 },
+        static_cast<float>(face.ao[3]) / 3.0f,
         textureIndex
         });
 

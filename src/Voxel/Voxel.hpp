@@ -145,21 +145,23 @@ namespace Voxel
 
     struct UVOrientation
     {
-        bool swapUV;
-        bool flipU;
-        bool flipV;
+        int uAxis;
+        int uSign;
+
+        int vAxis;
+        int vSign;
     };
 
     constexpr UVOrientation UV_ORIENTATIONS[6] =
     {
-        { true,  true,  false }, // +X
-        { true,  false, false }, // -X
+        { 2, +1, 1, +1 }, // +X : U=+Z, V=+Y
+        { 2, -1, 1, +1 }, // -X : U=-Z, V=+Y
 
-        { true,  false, false }, // +Y
-        { true,  false, true  }, // -Y
+        { 0, +1, 2, +1 }, // +Y : U=+X, V=+Z
+        { 0, +1, 2, -1 }, // -Y : U=+X, V=-Z
 
-        { false, false, false }, // +Z
-        { false, true,  false }  // -Z
+        { 0, +1, 1, +1 }, // +Z : U=+X, V=+Y
+        { 0, -1, 1, +1 }  // -Z : U=-X, V=+Y
     };
 
 	inline bool isAir(VoxelID voxel)

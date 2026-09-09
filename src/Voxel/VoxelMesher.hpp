@@ -47,9 +47,26 @@ namespace Voxel
 
     private:
 
-       static void addQuad(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices,
-           const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3,
-           const glm::vec3& normal, const Face& face, int width, int height, int faceIndex, int worldUOffset, int worldVOffset);
+        static void addQuad(
+            std::vector<Vertex>& vertices,
+            std::vector<unsigned int>& indices,
+
+            const glm::vec3& v0,
+            const glm::vec3& v1,
+            const glm::vec3& v2,
+            const glm::vec3& v3,
+
+            const glm::vec3& normal,
+
+            const Face& face,
+
+            int width,
+            int height,
+
+            int faceIndex,
+
+            const glm::vec3& worldOrigin
+        );
 
         static std::uint8_t calculateAO(
             const World& world,
