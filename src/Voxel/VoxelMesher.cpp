@@ -61,6 +61,21 @@ namespace Voxel
             return { 0.0f, 0.0f, value };
         }
 
+        int getWorldAxisOffset(
+            int axis,
+            int chunkOriginX,
+            int chunkOriginZ
+        )
+        {
+            if (axis == 0)
+                return chunkOriginX;
+
+            if (axis == 2)
+                return chunkOriginZ;
+
+            return 0;
+        }
+
         int getComponent(
             const Axis& value,
             int axis
@@ -420,7 +435,19 @@ namespace Voxel
                         glm::vec3 v1 = origin + duVector;
                         glm::vec3 v2 = origin + duVector + dvVector;
                         glm::vec3 v3 = origin + dvVector;
+                        const int worldU =
+                            getWorldAxisOffset(
+                                u,
+                                originX,
+                                originZ
+                            ) + i;
 
+                        const int worldV =
+                            getWorldAxisOffset(
+                                v,
+                                originX,
+                                originZ
+                            ) + j;
                         addQuad(
                             vertices,
                             indices,
@@ -436,7 +463,9 @@ namespace Voxel
 
                             width,
                             height,
-							getFaceIndex(normal)
+							getFaceIndex(normal),
+                            worldU,
+							worldV
                         );
 
                         /*
@@ -489,7 +518,9 @@ void VoxelMesher::addQuad(
     int width,
     int height,
 
-    int faceIndex
+    int faceIndex,
+    int worldUOffset,
+    int worldVOffset
 )
 {
     const unsigned int start =
@@ -516,11 +547,15 @@ void VoxelMesher::addQuad(
         géométrique utilisé par le Greedy Mesher.
     */
 
-    float aU = 0.0f;
-    float bU = w;
+    float aU = static_cast<float>(worldUOffset);
+    float bU = static_cast<float>(
+            worldUOffset + width
+            );
 
-    float aV = 0.0f;
-    float bV = h;
+    float aV = static_cast<float>(worldVOffset);
+    float bV = static_cast<float>(
+        worldVOffset + height
+        );;
 
     /*
         Permutation U <-> V.
