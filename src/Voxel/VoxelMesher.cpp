@@ -497,7 +497,7 @@ namespace Voxel
 
 //
 
- void VoxelMesher::addQuad(
+void VoxelMesher::addQuad(
     std::vector<Vertex>& vertices,
     std::vector<unsigned int>& indices,
 
@@ -514,15 +514,14 @@ namespace Voxel
     int height,
 
     int faceIndex,
-
-    int worldU,
-	int worldV
+    int worldUOffset,
+    int worldVOffset
 )
 {
     const unsigned int start =
         static_cast<unsigned int>(
             vertices.size()
-            );
+        );
 
     const float w =
         static_cast<float>(width);
@@ -533,54 +532,51 @@ namespace Voxel
     const float textureIndex =
         static_cast<float>(
             face.textureIndex
-            );
+        );
 
-    const UVOrientation orientation =
+    const UVOrientation& orientation =
         UV_ORIENTATIONS[faceIndex];
 
+    const float u0 =
+        orientation.aU * w + worldUOffset;
 
-    float u0;
-    float u1;
+    const float v0 =
+        orientation.aV * h + worldVOffset;
 
-    float v0;
-    float v1;
+    const float u1 =
+        orientation.bU * w + worldUOffset;
 
+    const float v1 =
+        orientation.bV * h + worldVOffset;
 
+    const float u2 =
+        orientation.cU * w + worldUOffset;
 
-    if (orientation.uSign > 0)
-    {
-        u0 = 0.0f;
-        u1 = w;
-    }
-    else
-    {
-        u0 = w;
-        u1 = 0.0f;
-    }
+    const float v2 =
+        orientation.cV * h + worldVOffset;
 
-    if (orientation.vSign > 0)
-    {
-        v0 = 0.0f;
-        v1 = h;
-    }
-    else
-    {
-        v0 = h;
-        v1 = 0.0f;
-    }
+    const float u3 =
+        orientation.dU * w + worldUOffset;
+
+    const float v3 =
+        orientation.dV * h + worldVOffset;
+
+    // Déduire les vecteurs locaux du quad à partir des positions des sommets.
+    const glm::vec3 duVec = gv1 - gv0; // correspond à l'axe U local
+    const glm::vec3 dvVec = gv3 - gv0; // correspond à l'axe V local
 
     vertices.push_back({
-        gv0,
-        normal,
-        { u0 + worldU, v0 + worldV },
-        static_cast<float>(face.ao[0]) / 3.0f,
-        textureIndex
+     gv0,
+     normal,
+     { u0, v0 },
+     static_cast<float>(face.ao[0]) / 3.0f,
+     textureIndex
         });
 
     vertices.push_back({
         gv1,
         normal,
-        { u1 + worldU, v0 + worldV },
+        { u1, v1 },
         static_cast<float>(face.ao[1]) / 3.0f,
         textureIndex
         });
@@ -588,7 +584,7 @@ namespace Voxel
     vertices.push_back({
         gv2,
         normal,
-        { u1 + worldU, v1 + worldV },
+        { u2, v2 },
         static_cast<float>(face.ao[2]) / 3.0f,
         textureIndex
         });
@@ -596,7 +592,7 @@ namespace Voxel
     vertices.push_back({
         gv3,
         normal,
-        { u0 + worldU, v1 + worldV },
+        { u3, v3 },
         static_cast<float>(face.ao[3]) / 3.0f,
         textureIndex
         });

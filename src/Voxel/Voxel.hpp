@@ -20,118 +20,118 @@ namespace Voxel
 	struct BlockInfo
 	{
 		int texture[6];
-        /*
+		/*
 		0 = +X SIDE RIGHT
 		1 = -X SIDE LEFT
-        2 = +Y TOP
+		2 = +Y TOP
 		3 = -Y BOTTOM
 		4 = +Z SIDE FRONT
 		5 = -Z SIDE BACK
-        */
+		*/
 	};
-    inline const BlockInfo& getBlockInfo(VoxelID id)
-    {
-        static const BlockInfo air{
-            {
-                -1, // +X
-                -1, // -X
-                -1, // +Y
-                -1, // -Y
-                -1, // +Z
-                -1  // -Z
-            }
-        };
+	inline const BlockInfo& getBlockInfo(VoxelID id)
+	{
+		static const BlockInfo air{
+			{
+				-1, // +X
+				-1, // -X
+				-1, // +Y
+				-1, // -Y
+				-1, // +Z
+				-1  // -Z
+			}
+		};
 
-        static const BlockInfo grass{
-            {
-                1, // +X
-                1, // -X
-                0, // +Y
-                1, // -Y
-                1, // +Z
-                1  // -Z
-            }
-        };
+		static const BlockInfo grass{
+			{
+				1, // +X
+				1, // -X
+				0, // +Y
+				1, // -Y
+				1, // +Z
+				1  // -Z
+			}
+		};
 
-        static const BlockInfo dirt{
-            {
-                2, // +X
-                2, // -X
-                2, // +Y
-                2, // -Y
-                2, // +Z
-                2  // -Z
-            }
-        };
+		static const BlockInfo dirt{
+			{
+				2, // +X
+				2, // -X
+				2, // +Y
+				2, // -Y
+				2, // +Z
+				2  // -Z
+			}
+		};
 
-        static const BlockInfo stone{
-            {
-                3, // +X
-                3, // -X
-                3, // +Y
-                3, // -Y
-                3, // +Z
-                3  // -Z
-            }
-        };
+		static const BlockInfo stone{
+			{
+				3, // +X
+				3, // -X
+				3, // +Y
+				3, // -Y
+				3, // +Z
+				3  // -Z
+			}
+		};
 
-        static const BlockInfo sand{
-            {
-                4, // +X
-                4, // -X
-                4, // +Y
-                4, // -Y
-                4, // +Z
-                4  // -Z
-            }
-        };
+		static const BlockInfo sand{
+			{
+				4, // +X
+				4, // -X
+				4, // +Y
+				4, // -Y
+				4, // +Z
+				4  // -Z
+			}
+		};
 
-        static const BlockInfo water{
-            {
-                5, // +X
-                5, // -X
-                5, // +Y
-                5, // -Y
-                5, // +Z
-                5  // -Z
-            }
-        };
+		static const BlockInfo water{
+			{
+				5, // +X
+				5, // -X
+				5, // +Y
+				5, // -Y
+				5, // +Z
+				5  // -Z
+			}
+		};
 
-        static const BlockInfo blank{
-            {
-                6, // +X
-                6, // -X
-                6, // +Y
-                6, // -Y
-                6, // +Z
-                6  // -Z
-            }
-        };
+		static const BlockInfo blank{
+			{
+				6, // +X
+				6, // -X
+				6, // +Y
+				6, // -Y
+				6, // +Z
+				6  // -Z
+			}
+		};
 
-        switch (id)
-        {
-        case Block::Grass:
-            return grass;
+		switch (id)
+		{
+		case Block::Grass:
+			return grass;
 
-        case Block::Dirt:
-            return dirt;
+		case Block::Dirt:
+			return dirt;
 
-        case Block::Stone:
-            return stone;
+		case Block::Stone:
+			return stone;
 
-        case Block::Sand:
-            return sand;
+		case Block::Sand:
+			return sand;
 
-        case Block::Water:
-            return water;
+		case Block::Water:
+			return water;
 
-        case Block::Blank:
-            return blank;
+		case Block::Blank:
+			return blank;
 
-        default:
-            return air;
-        }
-    }
+		default:
+			return air;
+		}
+	}
 
 	enum class FaceDirection
 	{
@@ -143,23 +143,71 @@ namespace Voxel
 		NegZ
 	};
 
-    struct UVOrientation
-    {
-        int uSign;
-        int vSign;
-    };
+	struct UVOrientation
+	{
+		float aU;
+		float aV;
 
-    constexpr UVOrientation UV_ORIENTATIONS[6] =
-    {
-        { +1, +1 }, // +X
-        { -1, +1 }, // -X
+		float bU;
+		float bV;
 
-        { +1, +1 }, // +Y
-        { +1, -1 }, // -Y
+		float cU;
+		float cV;
 
-        { -1, +1 }, // +Z
-        { +1, +1 }  // -Z
-    };
+		float dU;
+		float dV;
+	};
+
+	constexpr UVOrientation UV_ORIENTATIONS[6] =
+	{
+		// +X RIGHT
+		{
+			0.0f, 1.0f,
+			1.0f, 1.0f,
+			1.0f, 0.0f,
+			0.0f, 0.0f
+		},
+
+		// -X LEFT
+		{
+			0.0f, 1.0f,
+			1.0f, 1.0f,
+			1.0f, 0.0f,
+			0.0f, 0.0f
+		},
+
+		// +Y TOP
+		{
+			0.0f, 0.0f,
+			1.0f, 0.0f,
+			1.0f, 1.0f,
+			0.0f, 1.0f
+		},
+
+		// -Y BOTTOM
+		{
+			0.0f, 1.0f,
+			1.0f, 1.0f,
+			1.0f, 0.0f,
+			0.0f, 0.0f
+		},
+
+		// +Z FRONT
+		{
+			0.0f, 1.0f,
+			1.0f, 1.0f,
+			1.0f, 0.0f,
+			0.0f, 0.0f
+		},
+
+		// -Z BACK
+		{
+			1.0f, 1.0f,
+			0.0f, 1.0f,
+			0.0f, 0.0f,
+			1.0f, 0.0f
+		}
+	};
 
 	inline bool isAir(VoxelID voxel)
 	{

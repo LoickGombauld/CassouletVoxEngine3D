@@ -7,7 +7,7 @@
 #include "../Input/Input.hpp"
 #include "../Camera/Camera.hpp"
 #include "../World/World.hpp"
-#include "../Voxel/Voxel.hpp"
+#include "../Voxel/VoxelMesher.hpp"
 #include "../Voxel/Chunk.hpp"
 #include <iostream>
 #include <GLFW/glfw3.h>

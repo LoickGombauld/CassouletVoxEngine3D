@@ -47,7 +47,6 @@ namespace Voxel
 		float m_deltaTime = 0.0f;
 
 		std::unique_ptr<Shader> m_shader;
-		std::unique_ptr<Mesh> m_mesh;
 		std::unique_ptr<Camera> m_camera;
 		std::unique_ptr<World> m_world;
 		std::unique_ptr<Texture> m_textureAtlas;
