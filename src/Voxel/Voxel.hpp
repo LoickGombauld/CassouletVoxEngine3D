@@ -145,23 +145,20 @@ namespace Voxel
 
     struct UVOrientation
     {
-        int uAxis;
         int uSign;
-
-        int vAxis;
         int vSign;
     };
 
     constexpr UVOrientation UV_ORIENTATIONS[6] =
     {
-        { 2, +1, 1, +1 }, // +X : U=+Z, V=+Y
-        { 2, -1, 1, +1 }, // -X : U=-Z, V=+Y
+        { +1, +1 }, // +X
+        { -1, +1 }, // -X
 
-        { 0, +1, 2, +1 }, // +Y : U=+X, V=+Z
-        { 0, +1, 2, -1 }, // -Y : U=+X, V=-Z
+        { +1, +1 }, // +Y
+        { +1, -1 }, // -Y
 
-        { 0, +1, 1, +1 }, // +Z : U=+X, V=+Y
-        { 0, -1, 1, +1 }  // -Z : U=-X, V=+Y
+        { -1, +1 }, // +Z
+        { +1, +1 }  // -Z
     };
 
 	inline bool isAir(VoxelID voxel)

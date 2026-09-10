@@ -65,7 +65,8 @@ namespace Voxel
 
             int faceIndex,
 
-            const glm::vec3& worldOrigin
+            int UWorld,
+            int VWorld
         );
 
         static std::uint8_t calculateAO(

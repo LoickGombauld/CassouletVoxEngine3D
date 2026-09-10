@@ -47,6 +47,21 @@ namespace Voxel
             return result;
         }
 
+        int getWorldAxisOffset(
+            int axis,
+            int originX,
+            int originZ
+        )
+        {
+            if (axis == 0)
+                return originX;
+
+            if (axis == 2)
+                return originZ;
+
+            return 0;
+        }
+
         glm::vec3 axisVector(
             int axis,
             float value
@@ -422,6 +437,12 @@ namespace Voxel
                         glm::vec3 v2 = origin + duVector + dvVector;
                         glm::vec3 v3 = origin + dvVector;
 
+                        const int worldU =
+                            getWorldAxisOffset(u, originX, originZ) + i;
+
+                        const int worldV =
+                            getWorldAxisOffset(v, originX, originZ) + j;
+
                         addQuad(
                             vertices,
                             indices,
@@ -438,12 +459,8 @@ namespace Voxel
                             height,
 
                             getFaceIndex(normal),
-
-                            glm::vec3(
-                                static_cast<float>(originX + p[0]),
-                                static_cast<float>(p[1]),
-                                static_cast<float>(originZ + p[2])
-                            )
+                            worldU,
+							worldV
                         );
 
                         /*
@@ -498,7 +515,8 @@ namespace Voxel
 
     int faceIndex,
 
-    const glm::vec3& worldOrigin
+    int worldU,
+	int worldV
 )
 {
     const unsigned int start =
@@ -520,64 +538,49 @@ namespace Voxel
     const UVOrientation orientation =
         UV_ORIENTATIONS[faceIndex];
 
-    auto worldAxisValue =
-        [&](int axis) -> float
-        {
-            if (axis == 0)
-                return worldOrigin.x;
-
-            if (axis == 1)
-                return worldOrigin.y;
-
-            return worldOrigin.z;
-        };
-
-    const float uStart =
-        worldAxisValue(orientation.uAxis);
-
-    const float vStart =
-        worldAxisValue(orientation.vAxis);
 
     float u0;
     float u1;
 
-    if (orientation.uSign > 0)
-    {
-        u0 = uStart;
-        u1 = uStart + w;
-    }
-    else
-    {
-        u0 = uStart + w;
-        u1 = uStart;
-    }
-
     float v0;
     float v1;
 
-    if (orientation.vSign > 0)
+
+
+    if (orientation.uSign > 0)
     {
-        v0 = vStart;
-        v1 = vStart + h;
+        u0 = 0.0f;
+        u1 = w;
     }
     else
     {
-        v0 = vStart + h;
-        v1 = vStart;
+        u0 = w;
+        u1 = 0.0f;
+    }
+
+    if (orientation.vSign > 0)
+    {
+        v0 = 0.0f;
+        v1 = h;
+    }
+    else
+    {
+        v0 = h;
+        v1 = 0.0f;
     }
 
     vertices.push_back({
-     gv0,
-     normal,
-     { u0, v0 },
-     static_cast<float>(face.ao[0]) / 3.0f,
-     textureIndex
+        gv0,
+        normal,
+        { u0 + worldU, v0 + worldV },
+        static_cast<float>(face.ao[0]) / 3.0f,
+        textureIndex
         });
 
     vertices.push_back({
         gv1,
         normal,
-        { u1, v0 },
+        { u1 + worldU, v0 + worldV },
         static_cast<float>(face.ao[1]) / 3.0f,
         textureIndex
         });
@@ -585,7 +588,7 @@ namespace Voxel
     vertices.push_back({
         gv2,
         normal,
-        { u1, v1 },
+        { u1 + worldU, v1 + worldV },
         static_cast<float>(face.ao[2]) / 3.0f,
         textureIndex
         });
@@ -593,7 +596,7 @@ namespace Voxel
     vertices.push_back({
         gv3,
         normal,
-        { u0, v1 },
+        { u0 + worldU, v1 + worldV },
         static_cast<float>(face.ao[3]) / 3.0f,
         textureIndex
         });
