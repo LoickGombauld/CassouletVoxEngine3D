@@ -143,6 +143,16 @@ namespace Voxel
 		NegZ
 	};
 
+	enum class CubeFace
+	{
+		Right = 0, // +X
+		Left,      // -X
+		Top,       // +Y
+		Bottom,    // -Y
+		Front,     // +Z
+		Back       // -Z
+	};
+
 	struct UVOrientation
 	{
 		float aU;
@@ -156,6 +166,8 @@ namespace Voxel
 
 		float dU;
 		float dV;
+
+		CubeFace face;
 	};
 
 	constexpr UVOrientation UV_ORIENTATIONS[6] =
@@ -165,15 +177,15 @@ namespace Voxel
 			0.0f, 1.0f,
 			1.0f, 1.0f,
 			1.0f, 0.0f,
-			0.0f, 0.0f
+			0.0f, 0.0f,CubeFace::Right
 		},
 
 		// -X LEFT
 		{
-			0.0f, 1.0f,
 			1.0f, 1.0f,
-			1.0f, 0.0f,
-			0.0f, 0.0f
+			0.0f, 1.0f,
+			0.0f, 0.0f,
+			1.0f, 0.0f,CubeFace::Left
 		},
 
 		// +Y TOP
@@ -181,7 +193,7 @@ namespace Voxel
 			0.0f, 0.0f,
 			1.0f, 0.0f,
 			1.0f, 1.0f,
-			0.0f, 1.0f
+			0.0f, 1.0f,CubeFace::Top
 		},
 
 		// -Y BOTTOM
@@ -189,7 +201,7 @@ namespace Voxel
 			0.0f, 1.0f,
 			1.0f, 1.0f,
 			1.0f, 0.0f,
-			0.0f, 0.0f
+			0.0f, 0.0f,CubeFace::Bottom
 		},
 
 		// +Z FRONT
@@ -197,7 +209,7 @@ namespace Voxel
 			0.0f, 1.0f,
 			1.0f, 1.0f,
 			1.0f, 0.0f,
-			0.0f, 0.0f
+			0.0f, 0.0f,CubeFace::Front
 		},
 
 		// -Z BACK
@@ -205,7 +217,7 @@ namespace Voxel
 			1.0f, 1.0f,
 			0.0f, 1.0f,
 			0.0f, 0.0f,
-			1.0f, 0.0f
+			1.0f, 0.0f,CubeFace::Back
 		}
 	};
 

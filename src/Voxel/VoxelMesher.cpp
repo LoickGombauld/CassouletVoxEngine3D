@@ -565,6 +565,7 @@ void VoxelMesher::addQuad(
     const glm::vec3 duVec = gv1 - gv0; // correspond à l'axe U local
     const glm::vec3 dvVec = gv3 - gv0; // correspond à l'axe V local
 
+
     vertices.push_back({
      gv0,
      normal,
