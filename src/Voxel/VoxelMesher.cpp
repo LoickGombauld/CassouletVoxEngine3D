@@ -107,7 +107,7 @@ namespace Voxel
 					2, // U = -Z
 					1, // V = +Y
 					+1,
-					-0
+					-1
 				};
 			}
 
