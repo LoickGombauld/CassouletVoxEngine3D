@@ -106,8 +106,8 @@ namespace Voxel
 				return {
 					2, // U = -Z
 					1, // V = +Y
-					-1,
-					+1
+					+1,
+					-0
 				};
 			}
 
@@ -761,13 +761,28 @@ namespace Voxel
 			textureIndex
 			});
 
-		const bool negativeFace =
-			(faceIndex % 2) == 1;
+		const glm::vec3 geometricNormal =
+			glm::cross(duVec, dvVec);
 
-		if (face.ao[0] + face.ao[2] >
-			face.ao[1] + face.ao[3])
+		const bool reverseWinding =
+			glm::dot(geometricNormal, normal) < 0.0f;
+
+		/*
+			Choix de la diagonale en fonction de l'AO.
+
+			On conserve la logique actuelle :
+			- diagonale 0 -> 2 si les coins opposés 0+2
+			  sont plus éclairés
+			- diagonale 1 -> 3 sinon
+		*/
+
+		const bool diagonal02 =
+			face.ao[0] + face.ao[2] >
+			face.ao[1] + face.ao[3];
+
+		if (diagonal02)
 		{
-			if (!negativeFace)
+			if (!reverseWinding)
 			{
 				indices.push_back(start + 0);
 				indices.push_back(start + 1);
@@ -790,7 +805,7 @@ namespace Voxel
 		}
 		else
 		{
-			if (!negativeFace)
+			if (!reverseWinding)
 			{
 				indices.push_back(start + 0);
 				indices.push_back(start + 1);
