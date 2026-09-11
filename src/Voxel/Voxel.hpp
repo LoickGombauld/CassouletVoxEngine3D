@@ -174,10 +174,10 @@ namespace Voxel
 	{
 		// +X RIGHT
 		{
-			0.0f, 1.0f,
-			1.0f, 1.0f,
+			0.0f, 0.0f,
 			1.0f, 0.0f,
-			0.0f, 0.0f,CubeFace::Right
+			1.0f, 1.0f,
+			0.0f, 1.0f, CubeFace::Right
 		},
 
 		// -X LEFT
@@ -185,15 +185,16 @@ namespace Voxel
 			1.0f, 1.0f,
 			0.0f, 1.0f,
 			0.0f, 0.0f,
-			1.0f, 0.0f,CubeFace::Left
+			1.0f, 0.0f, CubeFace::Left
 		},
 
 		// +Y TOP
+		// Correction : l'axe V n'est plus inversé par rapport aux autres faces.
 		{
-			0.0f, 0.0f,
-			1.0f, 0.0f,
+			0.0f, 1.0f,
 			1.0f, 1.0f,
-			0.0f, 1.0f,CubeFace::Top
+			1.0f, 0.0f,
+			0.0f, 0.0f, CubeFace::Top
 		},
 
 		// -Y BOTTOM
@@ -201,7 +202,7 @@ namespace Voxel
 			0.0f, 1.0f,
 			1.0f, 1.0f,
 			1.0f, 0.0f,
-			0.0f, 0.0f,CubeFace::Bottom
+			0.0f, 0.0f, CubeFace::Bottom
 		},
 
 		// +Z FRONT
@@ -209,7 +210,7 @@ namespace Voxel
 			0.0f, 1.0f,
 			1.0f, 1.0f,
 			1.0f, 0.0f,
-			0.0f, 0.0f,CubeFace::Front
+			0.0f, 0.0f, CubeFace::Front
 		},
 
 		// -Z BACK
@@ -217,7 +218,7 @@ namespace Voxel
 			1.0f, 1.0f,
 			0.0f, 1.0f,
 			0.0f, 0.0f,
-			1.0f, 0.0f,CubeFace::Back
+			1.0f, 0.0f, CubeFace::Back
 		}
 	};
 

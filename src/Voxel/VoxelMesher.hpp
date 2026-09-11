@@ -27,6 +27,11 @@ namespace Voxel
 
 			int textureIndex = 0;
 
+            int uAxis;
+            int vAxis;
+            int uSign;
+            int vSign;
+
             std::uint8_t ao[4] = {
                 3,
                 3,
