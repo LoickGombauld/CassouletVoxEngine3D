@@ -1,14 +1,48 @@
-
 #include <glm/gtc/matrix_transform.hpp>
 #include "../World/World.hpp"
 #include "../Renderer/Shader.hpp"
 #include "../Voxel/Chunk.hpp"
 #include "../Renderer/Mesh.hpp"
-#include "../Voxel/Voxel.hpp"   
+#include "../Voxel/Voxel.hpp"
+#include "../World/World.hpp"
+
+
 
 namespace Voxel
 {
-    World::World() = default;
+    World::World(
+        std::uint32_t seed
+    )
+    {
+        m_generator =
+            std::make_unique<WorldGenerator>(
+                seed
+            );
+    }
+    
+    void World::generateChunk(
+        int chunkX,
+        int chunkZ
+    )
+    {
+        auto chunk =
+            std::make_unique<Chunk>(
+                chunkX,
+                chunkZ
+            );
+
+        m_generator->generateChunk(
+            *chunk
+        );
+
+
+		m_chunks[makeChunkKey(chunkX, chunkZ)] =
+            std::move(chunk);
+
+        m_chunks[makeChunkKey(chunkX, chunkZ)]->rebuildMesh(
+            *this
+        );
+    }
 
     long long World::makeChunkKey(
         int x,

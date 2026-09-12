@@ -37,8 +37,18 @@ namespace Voxel
 		m_shader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
 		m_textureAtlas->bind(0);
 		m_shader->setInt("u_TextureAtlas", 0);
-		m_world = std::make_unique<World>();
-		m_world->generate();
+		m_world = std::make_unique<World>(12345);
+		for (int x = -2; x <= 2; ++x)
+		{
+			for (int z = -2; z <= 2; ++z)
+			{
+				m_world->generateChunk(
+					x,
+					z
+				);
+			}
+		}
+
 	}
 
 	Application::~Application()

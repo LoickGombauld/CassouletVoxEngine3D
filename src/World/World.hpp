@@ -3,20 +3,25 @@
 #include <memory>
 #include <unordered_map>
 #include <glm/ext/matrix_float4x4.hpp>
-
+#include "../World/WorldGenerator.hpp"
 namespace Voxel
 {
     class Shader;
 	class Chunk;
 
+
+
     class World
     {
     public:
 
-        World();
+        World(std::uint32_t seed);
 
         void generate();
-
+        void generateChunk(
+            int chunkX,
+            int chunkZ
+        );
         std::uint16_t getVoxel(
             int worldX,
             int worldY,
@@ -79,5 +84,6 @@ namespace Voxel
             long long,
             std::unique_ptr<Chunk>
         > m_chunks;
+        std::unique_ptr<WorldGenerator> m_generator;
     };
 }

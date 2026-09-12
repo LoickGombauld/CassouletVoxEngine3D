@@ -963,8 +963,8 @@ namespace Voxel
 				axis,
 				uAxis,
 				vAxis,
-				-1,
-				-1
+				-uSign,
+				-vSign
 			);
 
 		face.ao[1] =
@@ -976,8 +976,8 @@ namespace Voxel
 				axis,
 				uAxis,
 				vAxis,
-				+1,
-				-1
+				+uSign,
+				-vSign
 			);
 
 		face.ao[2] =
@@ -989,8 +989,8 @@ namespace Voxel
 				axis,
 				uAxis,
 				vAxis,
-				+1,
-				+1
+				+uSign,
+				+vSign
 			);
 
 		face.ao[3] =
@@ -1002,8 +1002,8 @@ namespace Voxel
 				axis,
 				uAxis,
 				vAxis,
-				-1,
-				+1
+				-uSign,
+				+vSign
 			);
 
 		return face;

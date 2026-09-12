@@ -3,6 +3,8 @@
 #include <glm/vec3.hpp>
 #include <memory>
 #include <vector>
+#include <cstddef>
+#include <functional>
 
 namespace Voxel
 {
