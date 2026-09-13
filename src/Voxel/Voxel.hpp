@@ -15,6 +15,9 @@ namespace Voxel
 		constexpr VoxelID Sand = 4;
 		constexpr VoxelID Water = 5;
 		constexpr VoxelID Blank = 6;
+		constexpr VoxelID Log = 7;
+		constexpr VoxelID Leaves = 8;
+		constexpr VoxelID Cactus = 9;
 	}
 
 	struct BlockInfo
@@ -108,6 +111,50 @@ namespace Voxel
 			}
 		};
 
+		static const BlockInfo Gold{
+			{
+				7, // +X
+				7, // -X
+				7, // +Y
+				7, // -Y
+				7, // +Z
+				7  // -Z
+			}
+		};
+
+		static const BlockInfo log{
+			{
+				8, // +X
+				8, // -X
+				8, // +Y
+				8, // -Y
+				8, // +Z
+				8  // -Z
+			}
+		};
+
+		static const BlockInfo leaves{
+			{
+				9, // +X
+				9, // -X
+				9, // +Y
+				9, // -Y
+				9, // +Z
+				9  // -Z
+			}
+		};
+
+		static const BlockInfo cactus{
+			{
+				10, // +X
+				10, // -X
+				10, // +Y
+				10, // -Y
+				10, // +Z
+				10  // -Z
+			}
+		};
+
 		switch (id)
 		{
 		case Block::Grass:
@@ -127,6 +174,15 @@ namespace Voxel
 
 		case Block::Blank:
 			return blank;
+
+		case Block::Log:
+			return log;
+
+		case Block::Leaves:
+			return leaves;
+
+		case Block::Cactus:
+			return cactus;
 
 		default:
 			return air;

@@ -234,6 +234,8 @@ namespace Voxel
         float lacunarity
     ) const
     {
+        const auto start = std::chrono::steady_clock::now();
+
         if (octaves <= 0)
         {
             return 0.0f;
@@ -280,8 +282,8 @@ namespace Voxel
         }
 
 
-        return
-            total /
-            amplitudeSum;
+        const float result = total / amplitudeSum;
+        m_elapsedTime += std::chrono::steady_clock::now() - start;
+        return result;
     }
 }

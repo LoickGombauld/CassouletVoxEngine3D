@@ -1,5 +1,12 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "../World/World.hpp"
+#include "../World/WorldGenerationSettings.hpp"
+#include <chrono>
+#include <iostream>
+#include <algorithm>
+#include <atomic>
+#include <thread>
+#include <vector>
 #include "../Renderer/Shader.hpp"
 #include "../Voxel/Chunk.hpp"
 #include "../Renderer/Mesh.hpp"
@@ -282,47 +289,99 @@ namespace Voxel
     }
     void World::generate()
     {
-        constexpr int RADIUS = 2;
+        constexpr int RADIUS = WorldGenerationSettings::WORLD_RADIUS;
+        const auto start = std::chrono::steady_clock::now();
 
-        for (
-            int x = -RADIUS;
-            x <= RADIUS;
-            ++x
-            )
+        struct PendingChunk
         {
-            for (
-                int z = -RADIUS;
-                z <= RADIUS;
-                ++z
-                )
+            int x;
+            int z;
+            std::unique_ptr<Chunk> chunk;
+            GenerationTimings timings;
+        };
+
+        std::vector<PendingChunk> pendingChunks;
+        pendingChunks.reserve((2 * RADIUS + 1) * (2 * RADIUS + 1));
+
+        for (int x = -RADIUS; x <= RADIUS; ++x)
+        {
+            for (int z = -RADIUS; z <= RADIUS; ++z)
             {
-                auto chunk =
-                    std::make_unique<Chunk>(
-                        x,
-                        z
-                    );
-
-                chunk->generateTestTerrain(*this);
-
-                const long long key =
-                    makeChunkKey(
-                        x,
-                        z
-                    );
-
-                m_chunks.emplace(
-                    key,
-                    std::move(chunk)
-                );
+                pendingChunks.push_back({ x, z, nullptr, {} });
             }
+        }
+
+        std::atomic_size_t nextChunk = 0;
+        const unsigned int hardwareThreads = std::thread::hardware_concurrency();
+        const unsigned int workerCount = std::max(
+            1u,
+            std::min(
+                hardwareThreads == 0 ? 1u : hardwareThreads,
+                static_cast<unsigned int>(pendingChunks.size())
+            )
+        );
+        std::vector<std::thread> workers;
+        workers.reserve(workerCount);
+
+        for (unsigned int worker = 0; worker < workerCount; ++worker)
+        {
+            workers.emplace_back([&]()
+            {
+                WorldGenerator generator(m_generator->getSeed());
+
+                while (true)
+                {
+                    const std::size_t index = nextChunk.fetch_add(1);
+                    if (index >= pendingChunks.size())
+                        break;
+
+                    auto& pending = pendingChunks[index];
+                    pending.chunk = std::make_unique<Chunk>(pending.x, pending.z);
+                    generator.generateChunk(*pending.chunk);
+                    pending.timings = generator.getTimings();
+                    generator.resetTimings();
+                }
+            });
+        }
+
+        for (auto& worker : workers)
+            worker.join();
+
+        GenerationTimings timings;
+
+        for (auto& pending : pendingChunks)
+        {
+            timings.voxel += pending.timings.voxel;
+            timings.vegetation += pending.timings.vegetation;
+            timings.noise += pending.timings.noise;
+
+            m_chunks.emplace(
+                makeChunkKey(pending.x, pending.z),
+                std::move(pending.chunk)
+            );
         }
 
         // Maintenant que TOUS les chunks existent,
         // nous pouvons construire leurs meshes.
+        const auto meshStart = std::chrono::steady_clock::now();
         for (auto& [key, chunk] : m_chunks)
         {
             chunk->rebuildMesh(*this);
         }
+
+        const auto toMilliseconds = [](std::chrono::nanoseconds value)
+        {
+            return std::chrono::duration_cast<std::chrono::milliseconds>(value).count();
+        };
+        std::cout
+            << "World loading: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - start).count()
+            << " ms (voxels: " << toMilliseconds(timings.voxel)
+            << " ms, bruit: " << toMilliseconds(timings.noise)
+            << " ms, vegetation: " << toMilliseconds(timings.vegetation)
+            << " ms, meshes: " << toMilliseconds(std::chrono::steady_clock::now() - meshStart)
+            << " ms)\n";
     }
 
     void World::render(

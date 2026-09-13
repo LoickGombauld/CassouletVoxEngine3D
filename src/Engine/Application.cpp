@@ -7,6 +7,7 @@
 #include "../Input/Input.hpp"
 #include "../Camera/Camera.hpp"
 #include "../World/World.hpp"
+#include "../World/WorldGenerationSettings.hpp"
 #include "../Voxel/VoxelMesher.hpp"
 #include "../Voxel/Chunk.hpp"
 #include <iostream>
@@ -38,16 +39,7 @@ namespace Voxel
 		m_textureAtlas->bind(0);
 		m_shader->setInt("u_TextureAtlas", 0);
 		m_world = std::make_unique<World>(12345);
-		for (int x = -4; x <= 4; ++x)
-		{
-			for (int z = -4; z <= 4; ++z)
-			{
-				m_world->generateChunk(
-					x,
-					z
-				);
-			}
-		}
+        m_world->generate();
 
 	}
 

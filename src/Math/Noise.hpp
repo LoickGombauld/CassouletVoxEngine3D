@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <chrono>
 
 namespace Voxel
 {
@@ -31,11 +32,22 @@ namespace Voxel
             return m_seed;
         }
 
+        std::chrono::nanoseconds getElapsedTime() const
+        {
+            return m_elapsedTime;
+        }
+
+        void resetElapsedTime()
+        {
+            m_elapsedTime = std::chrono::nanoseconds::zero();
+        }
+
     private:
 
         std::uint32_t m_seed;
 
         std::array<int, 512> m_permutation;
+        mutable std::chrono::nanoseconds m_elapsedTime{};
 
         static float fade(
             float t
