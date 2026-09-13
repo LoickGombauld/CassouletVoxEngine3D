@@ -57,6 +57,15 @@ namespace Voxel
 		// et l'activation du contexte OpenGL.
 		int version = gladLoadGL();
 
+		glfwSetWindowUserPointer(m_window, this);
+		glfwSetFramebufferSizeCallback(m_window, framebufferSizeCallback);
+
+		glfwGetFramebufferSize(
+			m_window,
+			&m_width,
+			&m_height
+		);
+
 		if (version == 0)
 		{
 			glfwDestroyWindow(m_window);
@@ -79,6 +88,9 @@ namespace Voxel
 
 	void Window::pollEvents()
 	{
+		auto videoMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+		m_width = videoMode->width;
+		m_height = videoMode->height;
 		glfwPollEvents();
 	}
 
@@ -105,6 +117,11 @@ namespace Voxel
 	int Window::getHeight() const
 	{
 		return m_height;
+	}
+
+	void Window::framebufferSizeCallback(GLFWwindow* window, int width, int height)
+	{
+
 	}
 
 }

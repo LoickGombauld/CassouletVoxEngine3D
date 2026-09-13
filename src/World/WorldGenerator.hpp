@@ -1,11 +1,15 @@
 #pragma once
-
 #include <cstdint>
+#include <memory>
+#include "../Math/Noise.hpp"
+#include "Biome.hpp"
 
 
 namespace Voxel
 {
 	class Chunk;
+	class Noise;
+
 	using VoxelID = std::uint16_t;
 
 	class WorldGenerator
@@ -25,8 +29,24 @@ namespace Voxel
 			return m_seed;
 		}
 
+		float getTemperature(
+			int worldX,
+			int worldZ
+		) const;
+
+		float getHumidity(
+			int worldX,
+			int worldZ
+		) const;
+
+		Biome getBiome(
+			int worldX,
+			int worldZ
+		) const;
+
 	private:
 
+		std::unique_ptr<Noise> m_noise;
 		std::uint32_t m_seed;
 
 		int getTerrainHeight(

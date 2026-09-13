@@ -82,6 +82,8 @@ namespace Voxel
             int z,
 
             int axis,
+            int normal,
+
             int uAxis,
             int vAxis,
 

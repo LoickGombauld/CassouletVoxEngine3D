@@ -16,7 +16,7 @@ namespace Voxel
 
         ~Window();
 
-        Window(const Window&) = delete; 
+        Window(const Window&) = delete;
         Window& operator=(const Window&) = delete;
 
         void pollEvents();
@@ -26,13 +26,19 @@ namespace Voxel
 
         GLFWwindow* getNativeWindow() const;
 
-		int getWidth() const; 
-		int getHeight() const; 
+        int getWidth() const;
+        int getHeight() const;
 
     private:
 
+        static void framebufferSizeCallback(
+            GLFWwindow* window,
+            int width,
+            int height
+        );
+
         GLFWwindow* m_window = nullptr;
-		float m_width;
-		float m_height;
+        int m_width = 0;
+        int m_height = 0;
     };
 }

@@ -39,8 +39,9 @@ namespace Voxel
 		m_chunks[makeChunkKey(chunkX, chunkZ)] =
             std::move(chunk);
 
-        m_chunks[makeChunkKey(chunkX, chunkZ)]->rebuildMesh(
-            *this
+        rebuildChunkAndNeighbors(
+            chunkX,
+            chunkZ
         );
     }
 

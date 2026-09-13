@@ -38,9 +38,9 @@ namespace Voxel
 		m_textureAtlas->bind(0);
 		m_shader->setInt("u_TextureAtlas", 0);
 		m_world = std::make_unique<World>(12345);
-		for (int x = -2; x <= 2; ++x)
+		for (int x = -4; x <= 4; ++x)
 		{
-			for (int z = -2; z <= 2; ++z)
+			for (int z = -4; z <= 4; ++z)
 			{
 				m_world->generateChunk(
 					x,
@@ -109,30 +109,39 @@ namespace Voxel
 
 	void Application::render()
 	{
+		const int width = m_window->getWidth();
+		const int height = m_window->getHeight();
+
+		if (width <= 0 || height <= 0)
+			return;
+
+		m_renderer->setViewport(width, height);
 		m_renderer->beginFrame();
-		m_shader->bind(); 
+
+		m_shader->bind();
 		m_textureAtlas->bind();
 
-		glm::mat4 model = glm::mat4(1.0f);
+		const glm::mat4 model = glm::mat4(1.0f);
+		const glm::mat4 view = m_camera->getViewMatrix();
 
-		glm::mat4 view = m_camera->getViewMatrix();
+		const float aspectRatio =
+			static_cast<float>(width) /
+			static_cast<float>(height);
 
-		const float aspectRatio = static_cast<float>(m_window->getWidth()) / static_cast<float>(m_window->getHeight());
-
-		glm::mat4 projection = m_camera->getProjectionMatrix(aspectRatio);
+		const glm::mat4 projection =
+			m_camera->getProjectionMatrix(aspectRatio);
 
 		m_shader->setMat4("u_Model", model);
 		m_shader->setMat4("u_View", view);
 		m_shader->setMat4("u_Projection", projection);
 		m_shader->setInt("u_TextureAtlas", 0);
+
 		m_world->render(view, projection, *m_shader);
-		//m_mesh->draw();
 
 		m_shader->unbind();
 
 		m_renderer->endFrame();
 	}
-
 	void Application::endFrame()
 	{
 		m_window->swapBuffers();

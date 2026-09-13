@@ -263,14 +263,6 @@ namespace Voxel
 			chunk.getChunkZ() *
 			Chunk::DEPTH;
 
-		/*
-			Sweep sur les trois axes.
-
-			d = 0 → X
-			d = 1 → Y
-			d = 2 → Z
-		*/
-
 		for (int d = 0; d < 3; ++d)
 		{
 			const int u =
@@ -623,11 +615,6 @@ namespace Voxel
 							worldV
 						);
 
-						/*
-							Supprime le rectangle
-							du masque.
-						*/
-
 						for (int y = 0; y < height; ++y)
 						{
 							for (int x = 0; x < width; ++x)
@@ -837,6 +824,8 @@ namespace Voxel
 			int z,
 
 			int axis,
+			int normal,
+
 			int uAxis,
 			int vAxis,
 
@@ -844,22 +833,47 @@ namespace Voxel
 			int vSign
 		)
 	{
-		Axis side1Offset =
+		const Axis normalOffset =
+			makeAxis(
+				axis,
+				normal
+			);
+
+		const Axis uOffset =
 			makeAxis(
 				uAxis,
 				uSign
 			);
 
-		Axis side2Offset =
+		const Axis vOffset =
 			makeAxis(
 				vAxis,
 				vSign
 			);
 
-		Axis cornerOffset{
-			side1Offset.x + side2Offset.x,
-			side1Offset.y + side2Offset.y,
-			side1Offset.z + side2Offset.z
+		/*
+		 * Les deux voxels latéraux sont situés
+		 * sur le plan extérieur de la face.
+		 */
+		const Axis side1Offset{
+			normalOffset.x + uOffset.x,
+			normalOffset.y + uOffset.y,
+			normalOffset.z + uOffset.z
+		};
+
+		const Axis side2Offset{
+			normalOffset.x + vOffset.x,
+			normalOffset.y + vOffset.y,
+			normalOffset.z + vOffset.z
+		};
+
+		/*
+		 * Le voxel diagonal.
+		 */
+		const Axis cornerOffset{
+			normalOffset.x + uOffset.x + vOffset.x,
+			normalOffset.y + uOffset.y + vOffset.y,
+			normalOffset.z + uOffset.z + vOffset.z
 		};
 
 		const bool side1 =
@@ -895,10 +909,10 @@ namespace Voxel
 		}
 
 		return static_cast<std::uint8_t>(
-			3 -
-			static_cast<int>(side1) -
-			static_cast<int>(side2) -
-			static_cast<int>(corner)
+			3
+			- static_cast<int>(side1)
+			- static_cast<int>(side2)
+			- static_cast<int>(corner)
 			);
 	}
 
@@ -960,48 +974,76 @@ namespace Voxel
 				x,
 				y,
 				z,
+
 				axis,
+				normal,
+
 				uAxis,
 				vAxis,
+
 				-uSign,
 				-vSign
 			);
 
+
+		/*
+		 * v1 = (+U, -V)
+		 */
 		face.ao[1] =
 			calculateAO(
 				world,
 				x,
 				y,
 				z,
+
 				axis,
+				normal,
+
 				uAxis,
 				vAxis,
+
 				+uSign,
 				-vSign
 			);
 
+
+		/*
+		 * v2 = (+U, +V)
+		 */
 		face.ao[2] =
 			calculateAO(
 				world,
 				x,
 				y,
 				z,
+
 				axis,
+				normal,
+
 				uAxis,
 				vAxis,
+
 				+uSign,
 				+vSign
 			);
 
+
+		/*
+		 * v3 = (-U, +V)
+		 */
 		face.ao[3] =
 			calculateAO(
 				world,
 				x,
 				y,
 				z,
+
 				axis,
+				normal,
+
 				uAxis,
 				vAxis,
+
 				-uSign,
 				+vSign
 			);

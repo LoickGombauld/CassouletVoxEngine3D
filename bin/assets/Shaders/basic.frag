@@ -15,23 +15,16 @@ const int ATLAS_COLUMNS = 16;
 
 void main()
 {
-    /*
-        Coordonnées locales dans la face.
+    // ------------------------------------------------------------
+    // UV locale à l'intérieur de la texture répétée
+    // ------------------------------------------------------------
 
-        Exemple pour une face 4x3 :
-
-        U : 0 -> 4
-        V : 0 -> 3
-
-        fract() nous donne la position
-        à l'intérieur de la répétition actuelle.
-    */
     vec2 localUV = fract(v_UV);
 
-    /*
-        Convertit 0..1 en pixel 0..15
-        à l'intérieur de la texture 16x16.
-    */
+    // ------------------------------------------------------------
+    // Conversion UV -> pixel de la texture 16x16
+    // ------------------------------------------------------------
+
     int pixelX = int(
         floor(localUV.x * float(TILE_SIZE))
     );
@@ -40,9 +33,7 @@ void main()
         floor(localUV.y * float(TILE_SIZE))
     );
 
-    /*
-        Sécurité.
-    */
+    // Sécurité : toujours rester dans 0..15
     pixelX = clamp(
         pixelX,
         0,
@@ -55,18 +46,20 @@ void main()
         TILE_SIZE - 1
     );
 
-    /*
-        Position de la tuile dans l'atlas.
-    */
+    // ------------------------------------------------------------
+    // Position de la texture dans l'atlas
+    // ------------------------------------------------------------
+
     int tileX =
         v_TextureIndex % ATLAS_COLUMNS;
 
     int tileY =
         v_TextureIndex / ATLAS_COLUMNS;
 
-    /*
-        Pixel absolu dans l'atlas.
-    */
+    // ------------------------------------------------------------
+    // Position absolue du texel dans l'atlas
+    // ------------------------------------------------------------
+
     int atlasX =
         tileX * TILE_SIZE +
         pixelX;
@@ -75,9 +68,13 @@ void main()
         tileY * TILE_SIZE +
         pixelY;
 
-    /*
-        Lecture exacte d'un texel.
-    */
+    // ------------------------------------------------------------
+    // Lecture EXACTE du texel
+    //
+    // Important :
+    // on n'utilise surtout pas texture() ici.
+    // ------------------------------------------------------------
+
     vec4 color =
         texelFetch(
             u_TextureAtlas,
@@ -85,9 +82,10 @@ void main()
             0
         );
 
-    /*
-        Ambient occlusion.
-    */
+    // ------------------------------------------------------------
+    // Ambient Occlusion
+    // ------------------------------------------------------------
+
     color.rgb *=
         mix(
             0.55,
