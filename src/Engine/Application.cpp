@@ -30,7 +30,7 @@ namespace Voxel
 		, m_isRunning(true), m_deltaTime(0.0f), m_input(new Input()), 
 		m_textureAtlas(std::make_unique<Texture>("assets/textures/atlas.png",false))
 	{
-		m_camera = std::make_unique<Camera>(glm::vec3(0.0f, 0.0f, 3.0f));
+		m_camera = std::make_unique<Camera>(glm::vec3(0.0f, Chunk::HEIGHT , 3.0f));
 		m_input->initialize(*m_window);
 		m_renderer->setViewport(m_window->getWidth(), m_window->getHeight());
 
@@ -38,7 +38,7 @@ namespace Voxel
 		m_shader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
 		m_textureAtlas->bind(0);
 		m_shader->setInt("u_TextureAtlas", 0);
-		m_world = std::make_unique<World>(12345);
+		m_world = std::make_unique<World>(375);
         m_world->generate();
 
 	}
@@ -128,7 +128,13 @@ namespace Voxel
 		m_shader->setMat4("u_Projection", projection);
 		m_shader->setInt("u_TextureAtlas", 0);
 
+       m_shader->setInt("u_RenderWater", 0);
 		m_world->render(view, projection, *m_shader);
+
+		glDepthMask(GL_FALSE);
+		m_shader->setInt("u_RenderWater", 1);
+		m_world->render(view, projection, *m_shader);
+		glDepthMask(GL_TRUE);
 
 		m_shader->unbind();
 

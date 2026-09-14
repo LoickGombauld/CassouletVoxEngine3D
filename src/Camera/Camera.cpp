@@ -6,12 +6,15 @@
 #include <GLFW/glfw3.h>
 
 #include <glm/gtc/matrix_transform.hpp>
+
+#include "../Voxel/Chunk.hpp"
+
 #include <iostream>
 
 namespace Voxel
 {
     Camera::Camera()
-        : m_position(0.0f, 20.0f, 5.0f),
+        : m_position(0.0f, 0 , 5.0f),
         m_front(0.0f, 0.0f, -1.0f),
         m_up(0.0f, 1.0f, 0.0f),
         m_right(1.0f, 0.0f, 0.0f),

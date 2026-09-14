@@ -101,5 +101,28 @@ namespace Voxel
 			int worldY,
 			int worldZ
 		) const;
+
+		void generateLake(
+			Chunk& chunk
+		);
+
+		void removeFloatingLeaves(
+			Chunk& chunk
+		);
+
+		bool isInLakeZone(
+			int worldX,
+			int worldZ
+		) const;
+
+		bool isInDesertZone(
+			int worldX,
+			int worldZ
+		) const;
+
+		bool isInRiverZone(
+			int worldX,
+			int worldZ
+		) const;
 	};
 }

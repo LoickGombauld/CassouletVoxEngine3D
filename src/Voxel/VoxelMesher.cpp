@@ -355,11 +355,35 @@ namespace Voxel
 
 						Face face;
 
+						const bool solidA =
+							isSolid(voxelA);
 
+						const bool solidB =
+							isSolid(voxelB);
+
+						const bool waterA =
+							voxelA == Block::Water;
+
+						const bool waterB =
+							voxelB == Block::Water;
+
+						const bool transparentA =
+							isTransparent(voxelA);
+
+						const bool transparentB =
+							isTransparent(voxelB);
+
+
+						/*
+						 * ------------------------------------------------------------
+						 * A = solide
+						 * B = transparent
+						 * ------------------------------------------------------------
+						 */
 
 						if (
-							isSolid(voxelA) &&
-							isAir(voxelB)
+							solidA &&
+							transparentB
 							)
 						{
 							face =
@@ -372,9 +396,66 @@ namespace Voxel
 									+1
 								);
 						}
+
+
+						/*
+						 * ------------------------------------------------------------
+						 * A = transparent
+						 * B = solide
+						 * ------------------------------------------------------------
+						 */
+
 						else if (
-							isAir(voxelA) &&
-							isSolid(voxelB)
+							transparentA &&
+							solidB
+							)
+						{
+							face =
+								createFace(
+									world,
+									worldBX,
+									worldBY,
+									worldBZ,
+									d,
+									-1
+								);
+						}
+
+
+						/*
+						 * ------------------------------------------------------------
+						 * A = eau
+						 * B = air
+						 * ------------------------------------------------------------
+						 */
+
+						else if (
+							waterA &&
+							voxelB == Block::Air
+							)
+						{
+							face =
+								createFace(
+									world,
+									worldAX,
+									worldAY,
+									worldAZ,
+									d,
+									+1
+								);
+						}
+
+
+						/*
+						 * ------------------------------------------------------------
+						 * A = air
+						 * B = eau
+						 * ------------------------------------------------------------
+						 */
+
+						else if (
+							voxelA == Block::Air &&
+							waterB
 							)
 						{
 							face =

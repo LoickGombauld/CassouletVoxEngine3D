@@ -6,6 +6,7 @@ in float v_AO;
 flat in int v_TextureIndex;
 
 uniform sampler2D u_TextureAtlas;
+uniform int u_RenderWater;
 
 out vec4 FragColor;
 
@@ -82,6 +83,16 @@ void main()
             0
         );
 
+    if (u_RenderWater == 0 && v_TextureIndex == 5)
+    {
+        discard;
+    }
+
+    if (u_RenderWater == 1 && v_TextureIndex != 5)
+    {
+        discard;
+    }
+
     // ------------------------------------------------------------
     // Ambient Occlusion
     // ------------------------------------------------------------
@@ -92,6 +103,11 @@ void main()
             1.0,
             v_AO
         );
+
+    if (v_TextureIndex == 5)
+    {
+        color.a = 0.55;
+    }
 
     FragColor = color;
 }

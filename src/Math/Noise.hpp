@@ -19,8 +19,23 @@ namespace Voxel
             float z
         ) const;
 
+        float noise3D(
+            float x,
+            float y,
+            float z
+        ) const;
+
         float fractalNoise2D(
             float x,
+            float z,
+            int octaves = 5,
+            float persistence = 0.5f,
+            float lacunarity = 2.0f
+        ) const;
+
+        float fractalNoise3D(
+            float x,
+            float y,
             float z,
             int octaves = 5,
             float persistence = 0.5f,
@@ -62,6 +77,13 @@ namespace Voxel
         static float gradient(
             int hash,
             float x,
+            float z
+        );
+
+        static float gradient3D(
+            int hash,
+            float x,
+            float y,
             float z
         );
     };

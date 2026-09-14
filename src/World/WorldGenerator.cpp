@@ -2,6 +2,8 @@
 #include "../Voxel/Voxel.hpp"
 #include "../Voxel/Chunk.hpp"
 #include "../World/WorldGenerationSettings.hpp"
+#include <algorithm>
+#include <cmath>
 #include <glm/common.hpp>
 
 namespace Voxel {
@@ -164,7 +166,7 @@ namespace Voxel {
 		Chunk& chunk
 	)
 	{
-     const auto voxelStart = std::chrono::steady_clock::now();
+		const auto voxelStart = std::chrono::steady_clock::now();
 		const int originX =
 			chunk.getChunkX() *
 			Chunk::WIDTH;
@@ -218,11 +220,14 @@ namespace Voxel {
 			 */
 
 		}
-     m_voxelGenerationTime += std::chrono::steady_clock::now() - voxelStart;
+		m_voxelGenerationTime += std::chrono::steady_clock::now() - voxelStart;
 
 		const auto vegetationStart = std::chrono::steady_clock::now();
 		generateVegetation(chunk);
 		m_vegetationGenerationTime += std::chrono::steady_clock::now() - vegetationStart;
+
+		generateLake(chunk);
+       removeFloatingLeaves(chunk);
 	}
 
 	float WorldGenerator::getTemperature(
@@ -232,7 +237,7 @@ namespace Voxel {
 	{
 		const float temperature =
 			m_noise->fractalNoise2D(
-               static_cast<float>(worldX) * WorldGenerationSettings::TEMPERATURE_FREQUENCY,
+				static_cast<float>(worldX) * WorldGenerationSettings::TEMPERATURE_FREQUENCY,
 				static_cast<float>(worldZ) * WorldGenerationSettings::TEMPERATURE_FREQUENCY,
 				4,
 				0.5f,
@@ -252,7 +257,7 @@ namespace Voxel {
 
 		const float humidity =
 			m_noise->fractalNoise2D(
-              (static_cast<float>(worldX) + OFFSET_X) * WorldGenerationSettings::HUMIDITY_FREQUENCY,
+				(static_cast<float>(worldX) + OFFSET_X) * WorldGenerationSettings::HUMIDITY_FREQUENCY,
 				(static_cast<float>(worldZ) + OFFSET_Z) * WorldGenerationSettings::HUMIDITY_FREQUENCY,
 				4,
 				0.5f,
@@ -331,7 +336,7 @@ namespace Voxel {
 		 * Notre arbre peut s'étendre de 2 blocs autour
 		 * de son origine.
 		 */
-       constexpr int MARGIN =
+		constexpr int MARGIN =
 			WorldGenerationSettings::TREE_GENERATION_MARGIN;
 
 
@@ -390,13 +395,13 @@ namespace Voxel {
 			);
 
 		const int trunkHeight =
-         WorldGenerationSettings::TREE_MIN_HEIGHT +
+			WorldGenerationSettings::TREE_MIN_HEIGHT +
 			static_cast<int>(
 				hashCoordinates(
 					m_seed + 17u,
 					worldX,
 					worldZ
-               ) % WorldGenerationSettings::TREE_HEIGHT_VARIATION
+				) % WorldGenerationSettings::TREE_HEIGHT_VARIATION
 				);
 
 		const int topY =
@@ -487,14 +492,14 @@ namespace Voxel {
 			);
 
 
-      const int height =
+		const int height =
 			WorldGenerationSettings::CACTUS_MIN_HEIGHT +
 			static_cast<int>(
 				hashCoordinates(
 					m_seed + 100u,
 					worldX,
 					worldZ
-               ) % WorldGenerationSettings::CACTUS_HEIGHT_VARIATION
+				) % WorldGenerationSettings::CACTUS_HEIGHT_VARIATION
 				);
 
 
@@ -544,7 +549,7 @@ namespace Voxel {
 			static_cast<float>(UINT32_MAX);
 
 
-       return value < WorldGenerationSettings::DESERT_CACTUS_DENSITY;
+		return value < WorldGenerationSettings::DESERT_CACTUS_DENSITY;
 	}
 
 	bool WorldGenerator::shouldGenerateTree(
@@ -552,6 +557,17 @@ namespace Voxel {
 		int worldZ
 	) const
 	{
+     for (int dx = -2; dx <= 2; ++dx)
+		{
+           for (int dz = -2; dz <= 2; ++dz)
+			{
+				if (isInRiverZone(worldX + dx, worldZ + dz))
+				{
+					return false;
+				}
+			}
+		}
+
 		const Biome biome =
 			getBiome(
 				worldX,
@@ -579,13 +595,13 @@ namespace Voxel {
 		switch (biome)
 		{
 		case Biome::Forest:
-           return value < WorldGenerationSettings::FOREST_TREE_DENSITY;
+			return value < WorldGenerationSettings::FOREST_TREE_DENSITY;
 
 		case Biome::Plains:
-          return value < WorldGenerationSettings::PLAINS_TREE_DENSITY;
+			return value < WorldGenerationSettings::PLAINS_TREE_DENSITY;
 
 		case Biome::Savanna:
-          return value < WorldGenerationSettings::SAVANNA_TREE_DENSITY;
+			return value < WorldGenerationSettings::SAVANNA_TREE_DENSITY;
 
 		default:
 			return false;
@@ -690,20 +706,20 @@ namespace Voxel {
 		 * ------------------------------------------------------------
 		 */
 
-        constexpr float BASE_HEIGHT =
+		constexpr float BASE_HEIGHT =
 			WorldGenerationSettings::BASE_TERRAIN_HEIGHT;
 
 		/*
 		 * Variation générale des collines.
 		 */
 		const float hillHeight =
-             hills01 * WorldGenerationSettings::HILL_HEIGHT;
+			hills01 * WorldGenerationSettings::HILL_HEIGHT;
 
 		/*
 		 * Petits détails.
 		 */
 		const float detailHeight =
-             detail01 * WorldGenerationSettings::DETAIL_HEIGHT;
+			detail01 * WorldGenerationSettings::DETAIL_HEIGHT;
 
 
 		/*
@@ -715,8 +731,8 @@ namespace Voxel {
 		 * sélectionnées par mountainMask.
 		 */
 		const float mountainHeight =
-            mountainMask * continental01 *
-			 WorldGenerationSettings::MOUNTAIN_HEIGHT;
+			mountainMask * continental01 *
+			WorldGenerationSettings::MOUNTAIN_HEIGHT;
 
 
 		/*
@@ -747,13 +763,115 @@ namespace Voxel {
 				worldZ
 			);
 
-		/*
-		 * Au-dessus du terrain
+		if (isInRiverZone(worldX, worldZ))
+		{
+            const int riverSurface =
+				terrainHeight - WorldGenerationSettings::RIVER_BANK_OFFSET;
+
+			if (worldY == WorldGenerationSettings::RIVER_BOTTOM - 1)
+			{
+				return Block::Sand;
+			}
+
+			if (worldY >= WorldGenerationSettings::RIVER_BOTTOM &&
+               worldY <= riverSurface)
+			{
+				return Block::Water;
+			}
+
+            if (worldY > riverSurface)
+			{
+				return Block::Air;
+			}
+		}
+
+	  /*
+		 * Espace au-dessus du terrain.
+		 *
+		 * Les dépressions situées sous le niveau marin
+		 * sont remplies d'eau jusqu'à SEA_LEVEL.
 		 */
 
 		if (worldY > terrainHeight)
 		{
+           int waterLevel = WorldGenerationSettings::SEA_LEVEL;
+
+          for (int offsetX = -1; offsetX <= 1; ++offsetX)
+			{
+              for (int offsetZ = -1; offsetZ <= 1; ++offsetZ)
+				{
+                  if (offsetX == 0 && offsetZ == 0)
+					{
+						continue;
+					}
+
+					const int neighborWorldX = worldX + offsetX;
+					const int neighborWorldZ = worldZ + offsetZ;
+					const Biome neighborBiome =
+						getBiome(neighborWorldX, neighborWorldZ);
+
+					const bool hasGrassSurface =
+						neighborBiome != Biome::Desert &&
+						!isInRiverZone(neighborWorldX, neighborWorldZ) &&
+						!isInLakeZone(neighborWorldX, neighborWorldZ) &&
+						!isInDesertZone(neighborWorldX, neighborWorldZ);
+
+                   if (hasGrassSurface)
+					{
+                        const int grassY =
+							getTerrainHeight(
+								neighborWorldX,
+								neighborWorldZ
+							);
+
+						if (waterLevel >= grassY)
+						{
+							waterLevel = grassY - 1;
+						}
+					}
+				}
+			}
+
+			if (worldY <= waterLevel)
+			{
+				return Block::Water;
+			}
+
 			return Block::Air;
+		}
+
+       const bool isMountain =
+			terrainHeight >=
+			WorldGenerationSettings::MOUNTAIN_CAVE_ENTRY_HEIGHT;
+
+		const int caveSurfaceDepth =
+			isMountain
+			? 0
+			: WorldGenerationSettings::CAVE_SURFACE_DEPTH;
+
+		if (WorldGenerationSettings::GENERATE_CAVE_TUNNELS &&
+			worldY >= WorldGenerationSettings::CAVE_MIN_Y &&
+			worldY <= terrainHeight - caveSurfaceDepth &&
+			!isInLakeZone(worldX, worldZ) &&
+			!isInRiverZone(worldX, worldZ))
+		{
+			const float caveNoise =
+				m_noise->fractalNoise3D(
+					static_cast<float>(worldX) *
+						WorldGenerationSettings::CAVE_TUNNEL_FREQUENCY,
+					static_cast<float>(worldY) *
+						WorldGenerationSettings::CAVE_VERTICAL_FREQUENCY,
+					static_cast<float>(worldZ) *
+						WorldGenerationSettings::CAVE_TUNNEL_FREQUENCY,
+					3,
+					0.5f,
+					2.0f
+				);
+
+			if (caveNoise > WorldGenerationSettings::CAVE_TUNNEL_THRESHOLD)
+			{
+				return Block::Air;
+			}
 		}
 
 		/*
@@ -765,6 +883,16 @@ namespace Voxel {
 				worldX,
 				worldZ
 			);
+
+		if (isInDesertZone(worldX, worldZ))
+		{
+			if (worldY >= terrainHeight - 3)
+			{
+				return Block::Sand;
+			}
+
+			return Block::Stone;
+		}
 
 
 		/*
@@ -867,5 +995,242 @@ namespace Voxel {
 		}
 
 		return Block::Stone;
+	}
+
+	bool WorldGenerator::isInLakeZone(
+		int worldX,
+		int worldZ
+	) const
+	{
+		if (!WorldGenerationSettings::GUARANTEE_LAKES)
+		{
+			return false;
+		}
+
+		const int lakeWorldX =
+           (WorldGenerationSettings::LAKE_SPAWN_CHUNK_X * Chunk::WIDTH) +
+			WorldGenerationSettings::LAKE_CENTER_OFFSET_X;
+
+		const int lakeWorldZ =
+           (WorldGenerationSettings::LAKE_SPAWN_CHUNK_Z * Chunk::DEPTH) +
+			WorldGenerationSettings::LAKE_CENTER_OFFSET_Z;
+
+		const int distX = worldX - lakeWorldX;
+		const int distZ = worldZ - lakeWorldZ;
+		const int distSquared = distX * distX + distZ * distZ;
+		const int radiusSquared =
+			WorldGenerationSettings::LAKE_RADIUS *
+			WorldGenerationSettings::LAKE_RADIUS;
+
+		return distSquared <= radiusSquared;
+	}
+
+	void WorldGenerator::generateLake(
+		Chunk& chunk
+	)
+	{
+		if (!WorldGenerationSettings::GUARANTEE_LAKES)
+		{
+			return;
+		}
+
+		const int chunkX = chunk.getChunkX();
+		const int chunkZ = chunk.getChunkZ();
+
+		const int originX = chunkX * Chunk::WIDTH;
+		const int originZ = chunkZ * Chunk::DEPTH;
+
+		const int lakeWorldX =
+			(WorldGenerationSettings::LAKE_SPAWN_CHUNK_X * Chunk::WIDTH) +
+			WorldGenerationSettings::LAKE_CENTER_OFFSET_X;
+
+		const int lakeWorldZ =
+			(WorldGenerationSettings::LAKE_SPAWN_CHUNK_Z * Chunk::DEPTH) +
+			WorldGenerationSettings::LAKE_CENTER_OFFSET_Z;
+
+       int lakeSurface = 1000000;
+
+		for (int sample = 0; sample < 32; ++sample)
+		{
+			const float angle =
+				static_cast<float>(sample) * 6.2831853f / 32.0f;
+			const int sampleX =
+				lakeWorldX + static_cast<int>(
+					std::cos(angle) *
+					(WorldGenerationSettings::LAKE_RADIUS + 2)
+				);
+			const int sampleZ =
+				lakeWorldZ + static_cast<int>(
+					std::sin(angle) *
+					(WorldGenerationSettings::LAKE_RADIUS + 2)
+				);
+
+			const int rimHeight =
+				getTerrainHeight(sampleX, sampleZ) - 1;
+
+			if (rimHeight < lakeSurface)
+			{
+				lakeSurface = rimHeight;
+			}
+		}
+
+		for (int x = 0; x < Chunk::WIDTH; ++x)
+		{
+			for (int z = 0; z < Chunk::DEPTH; ++z)
+			{
+				const int worldX = originX + x;
+				const int worldZ = originZ + z;
+
+				const int distX = worldX - lakeWorldX;
+				const int distZ = worldZ - lakeWorldZ;
+              const float shapeVariation =
+					std::sin(static_cast<float>(worldX) * 0.071f) * 0.6f +
+					std::cos(static_cast<float>(worldZ) * 0.053f) * 0.4f;
+				const float radius =
+					static_cast<float>(WorldGenerationSettings::LAKE_RADIUS) *
+					(1.0f + shapeVariation *
+					WorldGenerationSettings::LAKE_SHAPE_VARIATION);
+				const float distance = std::sqrt(
+					static_cast<float>(distX * distX + distZ * distZ)
+				);
+
+				if (distance <= radius)
+				{
+                 const float normalizedDistance = distance / radius;
+					const int craterBottom =
+						std::max(
+							WorldGenerationSettings::LAKE_BOTTOM,
+							lakeSurface - static_cast<int>(
+								(1.0f - normalizedDistance * normalizedDistance) *
+								WorldGenerationSettings::LAKE_DEPTH
+							)
+						);
+
+					for (int y = 0; y < Chunk::HEIGHT; ++y)
+					{
+                      if (y < craterBottom)
+						{
+                            continue;
+						}
+
+                      if (y == craterBottom)
+						{
+							chunk.set(x, y, z, Block::Sand);
+                        }
+						else if (y <= lakeSurface)
+						{
+							chunk.set(x, y, z, Block::Water);
+						}
+						else
+						{
+							chunk.set(x, y, z, Block::Air);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	void WorldGenerator::removeFloatingLeaves(
+		Chunk& chunk
+	)
+	{
+		constexpr int TREE_MAX_HEIGHT =
+			WorldGenerationSettings::TREE_MIN_HEIGHT +
+			WorldGenerationSettings::TREE_HEIGHT_VARIATION;
+
+		constexpr int LEAF_RADIUS = 2;
+		constexpr int CHUNK_BORDER_MARGIN = LEAF_RADIUS;
+
+		for (int x = 0; x < Chunk::WIDTH; ++x)
+		{
+			for (int z = 0; z < Chunk::DEPTH; ++z)
+			{
+				for (int y = 0; y < Chunk::HEIGHT; ++y)
+				{
+					if (chunk.get(x, y, z) != Block::Leaves)
+					{
+						continue;
+					}
+
+					if (x < CHUNK_BORDER_MARGIN ||
+						x >= Chunk::WIDTH - CHUNK_BORDER_MARGIN ||
+						z < CHUNK_BORDER_MARGIN ||
+						z >= Chunk::DEPTH - CHUNK_BORDER_MARGIN)
+					{
+						continue;
+					}
+
+					bool hasTrunk = false;
+
+					for (int dx = -LEAF_RADIUS; dx <= LEAF_RADIUS && !hasTrunk; ++dx)
+					{
+						for (int dz = -LEAF_RADIUS; dz <= LEAF_RADIUS && !hasTrunk; ++dz)
+						{
+							const int minY =
+								std::max(0, y - TREE_MAX_HEIGHT);
+
+							for (int trunkY = y - 1; trunkY >= minY; --trunkY)
+							{
+								if (chunk.get(x + dx, trunkY, z + dz) == Block::Log)
+								{
+									hasTrunk = true;
+									break;
+								}
+							}
+						}
+					}
+
+					if (!hasTrunk)
+					{
+						chunk.set(x, y, z, Block::Air);
+					}
+				}
+			}
+		}
+	}
+
+	bool WorldGenerator::isInDesertZone(
+		int worldX,
+		int worldZ
+	) const
+	{
+		if (!WorldGenerationSettings::GUARANTEE_DESERT)
+		{
+			return false;
+		}
+
+		const int centerX =
+			WorldGenerationSettings::DESERT_SPAWN_CHUNK_X * Chunk::WIDTH +
+			WorldGenerationSettings::DESERT_CENTER_OFFSET_X;
+		const int centerZ =
+			WorldGenerationSettings::DESERT_SPAWN_CHUNK_Z * Chunk::DEPTH +
+			WorldGenerationSettings::DESERT_CENTER_OFFSET_Z;
+		const int dx = worldX - centerX;
+		const int dz = worldZ - centerZ;
+		const int radius = WorldGenerationSettings::DESERT_RADIUS;
+
+		return dx * dx + dz * dz <= radius * radius;
+	}
+
+	bool WorldGenerator::isInRiverZone(
+		int worldX,
+		int worldZ
+	) const
+	{
+		if (!WorldGenerationSettings::GUARANTEE_RIVER)
+		{
+			return false;
+		}
+
+		const float riverCenterZ =
+			std::sin(
+				static_cast<float>(worldX) *
+				WorldGenerationSettings::RIVER_FREQUENCY
+			) * WorldGenerationSettings::RIVER_AMPLITUDE;
+
+		return std::abs(
+			static_cast<float>(worldZ) - riverCenterZ
+		) <= static_cast<float>(WorldGenerationSettings::RIVER_WIDTH);
 	}
 }

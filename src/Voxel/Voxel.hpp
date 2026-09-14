@@ -288,4 +288,11 @@ namespace Voxel
 		return voxel != Block::Air &&
 			voxel != Block::Water;
 	}
+
+	inline bool isTransparent(VoxelID voxel)
+	{
+		return
+			voxel == Block::Air ||
+			voxel == Block::Water;
+	}
 }
