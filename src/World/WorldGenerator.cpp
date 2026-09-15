@@ -6,6 +6,7 @@
 #include <cmath>
 #include <vector>
 #include <glm/common.hpp>
+#include <iostream>
 
 namespace Voxel {
 
@@ -200,7 +201,6 @@ namespace Voxel {
 						originX + sampleX * SAMPLE_STEP,
 						originZ + sampleZ * SAMPLE_STEP
 					);
-				m_noiseCompute->computeHeightmap(sampleX, sampleZ, WorldGenerationSettings::TERRAIN_SAMPLE_STEP, outPut);
 			}
 		}
 
@@ -420,6 +420,109 @@ namespace Voxel {
 		}
 
 		return Biome::Plains;
+	}
+
+	void WorldGenerator::testNoiseCPUvsGPU()
+	{
+		std::cout << std::endl;
+		std::cout << "========================================" << std::endl;
+		std::cout << "       NOISE CPU vs GPU TEST" << std::endl;
+		std::cout << "========================================" << std::endl;
+
+		constexpr int chunkX = 0;
+		constexpr int chunkZ = 0;
+		constexpr int sampleStep = 1;
+
+		constexpr int gridSize = 16;
+
+		std::vector<int> gpuHeights(
+			gridSize * gridSize
+		);
+
+		// --------------------------------------------------------
+		// GPU
+		// --------------------------------------------------------
+
+		m_noiseCompute->computeHeightmap(
+			chunkX,
+			chunkZ,
+			sampleStep,
+			gpuHeights
+		);
+
+
+		// --------------------------------------------------------
+		// CPU
+		// --------------------------------------------------------
+
+		std::cout << std::endl;
+		std::cout << "Comparaison des hauteurs :" << std::endl;
+		std::cout << std::endl;
+
+		for (int z = 0; z < gridSize; ++z)
+		{
+			for (int x = 0; x < gridSize; ++x)
+			{
+				const int worldX =
+					chunkX * 16 + x * sampleStep;
+
+				const int worldZ =
+					chunkZ * 16 + z * sampleStep;
+
+
+				/*
+				 * Pour l'instant, le CPU utilise directement
+				 * fractalNoise2D().
+				 *
+				 * Les paramètres doivent être les mêmes
+				 * que ceux du Compute Shader.
+				 */
+				const float cpuNoise =
+					m_noise->fractalNoise2D(
+						static_cast<float>(worldX) * 0.01f,
+						static_cast<float>(worldZ) * 0.01f,
+						5,
+						0.5f,
+						2.0f
+					);
+
+
+				const int cpuHeight =
+					static_cast<int>(
+						32.0f +
+						cpuNoise * 20.0f
+						);
+
+
+				const int gpuHeight =
+					gpuHeights[x * gridSize + z];
+
+
+				const int difference =
+					std::abs(cpuHeight - gpuHeight);
+
+
+				std::cout
+					<< "("
+					<< worldX
+					<< ", "
+					<< worldZ
+					<< ") "
+					<< "CPU="
+					<< cpuHeight
+					<< " GPU="
+					<< gpuHeight
+					<< " DIFF="
+					<< difference
+					<< std::endl;
+			}
+		}
+
+		std::cout << std::endl;
+		std::cout << "========================================" << std::endl;
+		std::cout << "       FIN DU TEST CPU vs GPU" << std::endl;
+		std::cout << "========================================" << std::endl;
+		std::cout << std::endl;
 	}
 
 	void WorldGenerator::generateVegetation(

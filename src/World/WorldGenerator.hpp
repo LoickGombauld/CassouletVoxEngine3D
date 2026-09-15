@@ -59,6 +59,8 @@ namespace Voxel
 			int worldZ
 		) const;
 
+		void testNoiseCPUvsGPU();
+
 	private:
 
 		std::unique_ptr<Noise> m_noise;
@@ -66,7 +68,6 @@ namespace Voxel
 		std::uint32_t m_seed;
 		std::chrono::nanoseconds m_voxelGenerationTime{};
 		std::chrono::nanoseconds m_vegetationGenerationTime{};
-		std::vector<int>outPut = {16 * 16};
 		void generateVegetation(
             Chunk& chunk,
 			const std::vector<Biome>& biomeCache

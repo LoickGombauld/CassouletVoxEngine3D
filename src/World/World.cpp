@@ -27,6 +27,8 @@ namespace Voxel
                 seed
             );
 
+		m_generator->testNoiseCPUvsGPU();
+
         const unsigned int hardwareThreads =
             std::thread::hardware_concurrency();
 

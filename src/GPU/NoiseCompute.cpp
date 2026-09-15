@@ -82,7 +82,7 @@ layout(std430, binding = 0) buffer OutputBuffer
 
 
 // ============================================================
-// Perlin 2D
+// Utilitaires
 // ============================================================
 
 float fade(float t)
@@ -97,6 +97,10 @@ float lerp(float a, float b, float t)
 }
 
 
+// ============================================================
+// Permutation
+// ============================================================
+
 int permutation(int index)
 {
     index = index & 255;
@@ -108,6 +112,10 @@ int permutation(int index)
     ).r;
 }
 
+
+// ============================================================
+// Gradient 2D
+// ============================================================
 
 float gradient2D(
     int hash,
@@ -129,6 +137,10 @@ float gradient2D(
     return -x - z;
 }
 
+
+// ============================================================
+// Perlin 2D
+// ============================================================
 
 float noise2D(
     float x,
@@ -164,18 +176,80 @@ float noise2D(
     float v = fade(zf);
 
     float x1 = lerp(
-        gradient2D(aa, xf, zf),
-        gradient2D(ba, xf - 1.0f, zf),
+        gradient2D(
+            aa,
+            xf,
+            zf
+        ),
+        gradient2D(
+            ba,
+            xf - 1.0f,
+            zf
+        ),
         u
     );
 
     float x2 = lerp(
-        gradient2D(ab, xf, zf - 1.0f),
-        gradient2D(bb, xf - 1.0f, zf - 1.0f),
+        gradient2D(
+            ab,
+            xf,
+            zf - 1.0f
+        ),
+        gradient2D(
+            bb,
+            xf - 1.0f,
+            zf - 1.0f
+        ),
         u
     );
 
-    return lerp(x1, x2, v);
+    return lerp(
+        x1,
+        x2,
+        v
+    );
+}
+
+
+// ============================================================
+// FBM / Fractal Brownian Motion
+// ============================================================
+
+float fractalNoise2D(
+    float x,
+    float z,
+    int octaves,
+    float persistence,
+    float lacunarity
+)
+{
+    float total = 0.0f;
+
+    float amplitude = 1.0f;
+    float frequency = 1.0f;
+
+    float amplitudeSum = 0.0f;
+
+    for (int i = 0; i < octaves; ++i)
+    {
+        total += noise2D(
+            x * frequency,
+            z * frequency
+        ) * amplitude;
+
+        amplitudeSum += amplitude;
+
+        amplitude *= persistence;
+        frequency *= lacunarity;
+    }
+
+    // Même principe de normalisation :
+    // permet de conserver une plage stable
+    // indépendamment du nombre d'octaves.
+    if (amplitudeSum > 0.0f)
+        total /= amplitudeSum;
+
+    return total;
 }
 
 
@@ -185,34 +259,53 @@ float noise2D(
 
 void main()
 {
-    uvec2 coord = gl_GlobalInvocationID.xy;
+    uvec2 coord =
+        gl_GlobalInvocationID.xy;
 
     int x = int(coord.x);
     int z = int(coord.y);
 
-    // La heightmap actuelle est limitée à 16x16.
+    // Heightmap 16x16 actuelle.
     if (x >= 16 || z >= 16)
         return;
 
+
     float worldX =
-        float(uChunkX * 16 + x * uSampleStep);
+        float(
+            uChunkX * 16 +
+            x * uSampleStep
+        );
 
     float worldZ =
-        float(uChunkZ * 16 + z * uSampleStep);
-
-
-    // Pour cette première étape :
-    // un seul bruit Perlin.
-    float noise =
-        noise2D(
-            worldX * 0.01f,
-            worldZ * 0.01f
+        float(
+            uChunkZ * 16 +
+            z * uSampleStep
         );
 
 
-    // Conversion [-1, 1] -> hauteur.
+    // ========================================================
+    // FBM
+    // ========================================================
+
+    float noise =
+        fractalNoise2D(
+            worldX * 0.01f,
+            worldZ * 0.01f,
+            5,
+            0.5f,
+            2.0f
+        );
+
+
+    // ========================================================
+    // Conversion en hauteur
+    // ========================================================
+
     int height =
-        int(32.0f + noise * 20.0f);
+        int(
+            32.0f +
+            noise * 20.0f
+        );
 
 
     int outputIndex =
@@ -300,8 +393,6 @@ void main()
 
 
         glDeleteShader(shader);
-
-
     }
 
     void NoiseCompute::initCaveShader()
@@ -317,8 +408,8 @@ void main()
         std::vector<int>& output
     )
     {
-        //if (!m_computeProgram || output.empty())
-        //    return;
+        if (!m_computeProgram || output.empty())
+            return;
 
         // Créer ou réutiliser le SSBO
         if (!m_writeSSBO)
