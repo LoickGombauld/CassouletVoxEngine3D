@@ -143,8 +143,11 @@ namespace Voxel {
 	)
 		:
 		m_seed(seed),
-		m_noise(std::make_unique<Noise>(seed))
+		m_noise(std::make_unique<Noise>(seed)),
+		m_noiseCompute(std::make_unique<NoiseCompute>(seed))
 	{
+		
+		
 	}
 
 	void WorldGenerator::resetTimings()
@@ -197,6 +200,7 @@ namespace Voxel {
 						originX + sampleX * SAMPLE_STEP,
 						originZ + sampleZ * SAMPLE_STEP
 					);
+				m_noiseCompute->computeHeightmap(sampleX, sampleZ, WorldGenerationSettings::TERRAIN_SAMPLE_STEP, outPut);
 			}
 		}
 

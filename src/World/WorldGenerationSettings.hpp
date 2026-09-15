@@ -3,9 +3,9 @@
 namespace Voxel::WorldGenerationSettings
 {
     // Nombre de chunks générés autour du centre du monde.
-    inline constexpr int WORLD_RADIUS = 8;
-    inline constexpr int STREAMING_RADIUS = 8;
-    inline constexpr int STREAMING_UNLOAD_RADIUS = 10;
+    inline constexpr int WORLD_RADIUS = 4;
+    inline constexpr int STREAMING_RADIUS = WORLD_RADIUS;
+    inline constexpr int STREAMING_UNLOAD_RADIUS = WORLD_RADIUS;
     inline constexpr int STREAMING_MAX_COMPLETIONS_PER_FRAME = 2;
 
     // Fréquence des cartes de température et d'humidité.

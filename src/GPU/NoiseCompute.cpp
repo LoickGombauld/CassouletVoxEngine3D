@@ -5,6 +5,7 @@
 #include <numeric>
 #include <random>
 #include <iostream>
+#include <filesystem>
 
 namespace Voxel
 {
@@ -71,6 +72,7 @@ layout(local_size_x = 16, local_size_y = 16) in;
 uniform int uChunkX;
 uniform int uChunkZ;
 uniform int uSampleStep;
+
 uniform isampler1D uPermutation;
 
 layout(std430, binding = 0) buffer OutputBuffer
@@ -78,57 +80,228 @@ layout(std430, binding = 0) buffer OutputBuffer
     int heights[];
 };
 
-// Simplifié : utilise sin() à la place du bruit réel pour prototype
-float pseudoNoise2D(float x, float z)
+
+// ============================================================
+// Perlin 2D
+// ============================================================
+
+float fade(float t)
 {
-    return sin(x * 0.03f) * cos(z * 0.03f);
+    return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
 }
+
+
+float lerp(float a, float b, float t)
+{
+    return a + t * (b - a);
+}
+
+
+int permutation(int index)
+{
+    index = index & 255;
+
+    return texelFetch(
+        uPermutation,
+        index,
+        0
+    ).r;
+}
+
+
+float gradient2D(
+    int hash,
+    float x,
+    float z
+)
+{
+    int h = hash & 3;
+
+    if (h == 0)
+        return x + z;
+
+    if (h == 1)
+        return -x + z;
+
+    if (h == 2)
+        return x - z;
+
+    return -x - z;
+}
+
+
+float noise2D(
+    float x,
+    float z
+)
+{
+    int x0 = int(floor(x));
+    int z0 = int(floor(z));
+
+    float xf = x - float(x0);
+    float zf = z - float(z0);
+
+    int xi = x0 & 255;
+    int zi = z0 & 255;
+
+    int aa = permutation(
+        permutation(xi) + zi
+    );
+
+    int ab = permutation(
+        permutation(xi) + zi + 1
+    );
+
+    int ba = permutation(
+        permutation(xi + 1) + zi
+    );
+
+    int bb = permutation(
+        permutation(xi + 1) + zi + 1
+    );
+
+    float u = fade(xf);
+    float v = fade(zf);
+
+    float x1 = lerp(
+        gradient2D(aa, xf, zf),
+        gradient2D(ba, xf - 1.0f, zf),
+        u
+    );
+
+    float x2 = lerp(
+        gradient2D(ab, xf, zf - 1.0f),
+        gradient2D(bb, xf - 1.0f, zf - 1.0f),
+        u
+    );
+
+    return lerp(x1, x2, v);
+}
+
+
+// ============================================================
+// Compute
+// ============================================================
 
 void main()
 {
     uvec2 coord = gl_GlobalInvocationID.xy;
+
     int x = int(coord.x);
     int z = int(coord.y);
 
-    float worldX = float(uChunkX * 16 + x * uSampleStep);
-    float worldZ = float(uChunkZ * 16 + z * uSampleStep);
+    // La heightmap actuelle est limitée à 16x16.
+    if (x >= 16 || z >= 16)
+        return;
 
-    float noise1 = pseudoNoise2D(worldX * 0.0015f, worldZ * 0.0015f) * 64.0f;
-    float noise2 = pseudoNoise2D(worldX * 0.004f, worldZ * 0.004f) * 40.0f;
+    float worldX =
+        float(uChunkX * 16 + x * uSampleStep);
 
-    int height = int(28.0f + noise1 + noise2);
+    float worldZ =
+        float(uChunkZ * 16 + z * uSampleStep);
 
-    int outputIndex = x * 16 + z;
+
+    // Pour cette première étape :
+    // un seul bruit Perlin.
+    float noise =
+        noise2D(
+            worldX * 0.01f,
+            worldZ * 0.01f
+        );
+
+
+    // Conversion [-1, 1] -> hauteur.
+    int height =
+        int(32.0f + noise * 20.0f);
+
+
+    int outputIndex =
+        x * 16 + z;
+
+
     if (outputIndex < heights.length())
+    {
         heights[outputIndex] = height;
+    }
 }
 )";
 
-        unsigned int shader = glCreateShader(GL_COMPUTE_SHADER);
-        glShaderSource(shader, 1, &computeShaderSource, nullptr);
+        unsigned int shader =
+            glCreateShader(GL_COMPUTE_SHADER);
+
+        glShaderSource(
+            shader,
+            1,
+            &computeShaderSource,
+            nullptr
+        );
+
         glCompileShader(shader);
+
 
         int success;
         char infoLog[512];
-        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+
+        glGetShaderiv(
+            shader,
+            GL_COMPILE_STATUS,
+            &success
+        );
+
         if (!success)
         {
-            glGetShaderInfoLog(shader, 512, nullptr, infoLog);
-            std::cerr << "Compute shader compilation failed: " << infoLog << std::endl;
+            glGetShaderInfoLog(
+                shader,
+                512,
+                nullptr,
+                infoLog
+            );
+
+            std::cerr
+                << "Compute shader compilation failed: "
+                << infoLog
+                << std::endl;
         }
 
-        m_computeProgram = glCreateProgram();
-        glAttachShader(m_computeProgram, shader);
-        glLinkProgram(m_computeProgram);
 
-        glGetProgramiv(m_computeProgram, GL_LINK_STATUS, &success);
+        m_computeProgram =
+            glCreateProgram();
+
+        glAttachShader(
+            m_computeProgram,
+            shader
+        );
+
+        glLinkProgram(
+            m_computeProgram
+        );
+
+
+        glGetProgramiv(
+            m_computeProgram,
+            GL_LINK_STATUS,
+            &success
+        );
+
         if (!success)
         {
-            glGetProgramInfoLog(m_computeProgram, 512, nullptr, infoLog);
-            std::cerr << "Compute program linking failed: " << infoLog << std::endl;
+            glGetProgramInfoLog(
+                m_computeProgram,
+                512,
+                nullptr,
+                infoLog
+            );
+
+            std::cerr
+                << "Compute program linking failed: "
+                << infoLog
+                << std::endl;
         }
+
 
         glDeleteShader(shader);
+
+
     }
 
     void NoiseCompute::initCaveShader()
@@ -144,8 +317,8 @@ void main()
         std::vector<int>& output
     )
     {
-        if (!m_computeProgram || output.empty())
-            return;
+        //if (!m_computeProgram || output.empty())
+        //    return;
 
         // Créer ou réutiliser le SSBO
         if (!m_writeSSBO)
@@ -174,6 +347,11 @@ void main()
         // Lire le résultat
         glBindBuffer(GL_COPY_READ_BUFFER, m_writeSSBO);
         glGetBufferSubData(GL_COPY_READ_BUFFER, 0, bufferSize, output.data());
+
+        std::cout << '\r' 
+            << "GPU Heightmap [0] = "
+            << output[0]
+            << std::endl;
     }
 
     void NoiseCompute::computeCaveNoise(

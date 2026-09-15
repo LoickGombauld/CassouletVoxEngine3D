@@ -11,8 +11,6 @@
 namespace Voxel
 {
 	class Chunk;
-	class Noise;
-	class NoiseCompute;
 
 	using VoxelID = std::uint16_t;
 
@@ -64,10 +62,11 @@ namespace Voxel
 	private:
 
 		std::unique_ptr<Noise> m_noise;
+		std::unique_ptr<NoiseCompute> m_noiseCompute;
 		std::uint32_t m_seed;
 		std::chrono::nanoseconds m_voxelGenerationTime{};
 		std::chrono::nanoseconds m_vegetationGenerationTime{};
-
+		std::vector<int>outPut = {16 * 16};
 		void generateVegetation(
             Chunk& chunk,
 			const std::vector<Biome>& biomeCache
