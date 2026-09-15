@@ -5,12 +5,14 @@
 #include <vector>
 #include "../Math/Noise.hpp"
 #include "Biome.hpp"
+#include "../GPU/NoiseCompute.hpp"
 
 
 namespace Voxel
 {
 	class Chunk;
 	class Noise;
+	class NoiseCompute;
 
 	using VoxelID = std::uint16_t;
 

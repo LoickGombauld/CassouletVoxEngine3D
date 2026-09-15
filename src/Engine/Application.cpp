@@ -10,7 +10,7 @@
 #include "../World/WorldGenerationSettings.hpp"
 #include "../Voxel/VoxelMesher.hpp"
 #include "../Voxel/Chunk.hpp"
-#include <iostream>
+#include "../GPU/NoiseCompute.hpp"
 #include <GLFW/glfw3.h>
 #include <chrono>
 #include <iomanip>
