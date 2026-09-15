@@ -7,6 +7,7 @@
 #include <atomic>
 #include <thread>
 #include <vector>
+#include <cmath>
 #include "../Renderer/Shader.hpp"
 #include "../Voxel/Chunk.hpp"
 #include "../Renderer/Mesh.hpp"
@@ -25,6 +26,43 @@ namespace Voxel
             std::make_unique<WorldGenerator>(
                 seed
             );
+
+        const unsigned int hardwareThreads =
+            std::thread::hardware_concurrency();
+
+        const unsigned int workerCount =
+            std::max(
+                1u,
+                hardwareThreads > 1 ? hardwareThreads - 1 : 1u
+            );
+
+        m_generationWorkers.reserve(workerCount);
+
+        for (unsigned int index = 0; index < workerCount; ++index)
+        {
+            m_generationWorkers.emplace_back(
+                &World::generationWorker,
+                this
+            );
+        }
+    }
+
+    World::~World()
+    {
+        {
+            std::lock_guard<std::mutex> lock(m_generationMutex);
+            m_stopGeneration = true;
+        }
+
+        m_generationCondition.notify_all();
+
+        for (std::thread& worker : m_generationWorkers)
+        {
+            if (worker.joinable())
+            {
+                worker.join();
+            }
+        }
     }
     
     void World::generateChunk(
@@ -50,6 +88,256 @@ namespace Voxel
             chunkX,
             chunkZ
         );
+    }
+
+    void World::updateStreaming(
+        const glm::vec3& playerPosition
+    )
+    {
+        const int playerWorldX =
+            static_cast<int>(std::floor(playerPosition.x));
+
+        const int playerWorldZ =
+            static_cast<int>(std::floor(playerPosition.z));
+
+        const int playerChunkX =
+            floorDiv(playerWorldX, Chunk::WIDTH);
+
+        const int playerChunkZ =
+            floorDiv(playerWorldZ, Chunk::DEPTH);
+
+        constexpr int LOAD_RADIUS =
+            WorldGenerationSettings::STREAMING_RADIUS;
+
+        constexpr int UNLOAD_RADIUS =
+            WorldGenerationSettings::STREAMING_UNLOAD_RADIUS;
+
+        StreamingTimings timings;
+        processCompletedChunks(timings);
+
+        std::vector<std::pair<int, int>> chunksToQueue;
+
+        for (int offsetX = -LOAD_RADIUS; offsetX <= LOAD_RADIUS; ++offsetX)
+        {
+            for (int offsetZ = -LOAD_RADIUS; offsetZ <= LOAD_RADIUS; ++offsetZ)
+            {
+                const int chunkX = playerChunkX + offsetX;
+                const int chunkZ = playerChunkZ + offsetZ;
+
+                if (!getChunk(chunkX, chunkZ))
+                {
+                    chunksToQueue.emplace_back(chunkX, chunkZ);
+                }
+            }
+        }
+
+        std::sort(
+            chunksToQueue.begin(),
+            chunksToQueue.end(),
+            [playerChunkX, playerChunkZ](const auto& a, const auto& b)
+            {
+                const int distanceA =
+                    std::abs(a.first - playerChunkX) +
+                    std::abs(a.second - playerChunkZ);
+
+                const int distanceB =
+                    std::abs(b.first - playerChunkX) +
+                    std::abs(b.second - playerChunkZ);
+
+                return distanceA < distanceB;
+            }
+        );
+
+        for (const auto& [chunkX, chunkZ] : chunksToQueue)
+        {
+            queueChunkGeneration(chunkX, chunkZ);
+        }
+
+        std::vector<std::pair<int, int>> chunksToUnload;
+
+        for (const auto& [key, chunk] : m_chunks)
+        {
+            const int chunkX =
+                static_cast<int>(key >> 32);
+
+            const int chunkZ =
+                static_cast<int>(static_cast<unsigned int>(key));
+
+            if (std::abs(chunkX - playerChunkX) > UNLOAD_RADIUS ||
+                std::abs(chunkZ - playerChunkZ) > UNLOAD_RADIUS)
+            {
+                chunksToUnload.emplace_back(chunkX, chunkZ);
+            }
+        }
+
+        for (const auto& [chunkX, chunkZ] : chunksToUnload)
+        {
+            m_chunks.erase(makeChunkKey(chunkX, chunkZ));
+
+            const auto meshStart = std::chrono::steady_clock::now();
+            rebuildChunkAndNeighbors(chunkX, chunkZ);
+            timings.meshes += std::chrono::steady_clock::now() - meshStart;
+        }
+
+        const long long generatedNanoseconds =
+            m_generationNanoseconds.exchange(0);
+        const long long generationPeakNanoseconds =
+            m_generationPeakNanoseconds.exchange(0);
+        const int generatedChunks = m_generatedChunks.exchange(0);
+
+        if (generatedChunks > 0 || timings.integratedChunks > 0 ||
+            !chunksToUnload.empty())
+        {
+            const auto toMilliseconds = [](std::chrono::nanoseconds value)
+            {
+                return std::chrono::duration<double, std::milli>(value).count();
+            };
+
+            std::cout
+                << "\nStreaming | generation workers: "
+                << generatedChunks << " chunks, total "
+                << toMilliseconds(std::chrono::nanoseconds(generatedNanoseconds))
+                << " ms, pic "
+                << toMilliseconds(std::chrono::nanoseconds(generationPeakNanoseconds))
+                << " ms | integration: "
+                << toMilliseconds(timings.integration)
+                << " ms (" << timings.integratedChunks << " chunks)"
+                << " | meshes/OpenGL: "
+                << toMilliseconds(timings.meshes)
+                << " ms\n";
+        }
+    }
+
+    void World::queueChunkGeneration(
+        int chunkX,
+        int chunkZ
+    )
+    {
+        const long long key = makeChunkKey(chunkX, chunkZ);
+
+        std::lock_guard<std::mutex> lock(m_generationMutex);
+
+        if (m_pendingChunks.contains(key))
+        {
+            return;
+        }
+
+        m_pendingChunks.insert(key);
+        m_generationQueue.emplace_back(chunkX, chunkZ);
+        m_generationCondition.notify_one();
+    }
+
+    void World::processCompletedChunks(
+        StreamingTimings& timings
+    )
+    {
+        for (int count = 0;
+             count < WorldGenerationSettings::STREAMING_MAX_COMPLETIONS_PER_FRAME;
+             ++count)
+        {
+            std::unique_ptr<Chunk> completedChunk;
+
+            {
+                std::lock_guard<std::mutex> lock(m_generationMutex);
+
+                if (m_completedChunks.empty())
+                {
+                    break;
+                }
+
+                completedChunk = std::move(m_completedChunks.front());
+                m_completedChunks.pop_front();
+                m_pendingChunks.erase(
+                    makeChunkKey(
+                        completedChunk->getChunkX(),
+                        completedChunk->getChunkZ()
+                    )
+                );
+            }
+
+            const int chunkX = completedChunk->getChunkX();
+            const int chunkZ = completedChunk->getChunkZ();
+            const long long key = makeChunkKey(chunkX, chunkZ);
+
+            if (!m_chunks.contains(key))
+            {
+                const auto integrationStart = std::chrono::steady_clock::now();
+                m_chunks.emplace(key, std::move(completedChunk));
+
+                timings.integration +=
+                    std::chrono::steady_clock::now() - integrationStart;
+                ++timings.integratedChunks;
+
+                const auto meshStart = std::chrono::steady_clock::now();
+                rebuildChunkAndNeighbors(chunkX, chunkZ);
+                timings.meshes += std::chrono::steady_clock::now() - meshStart;
+            }
+        }
+    }
+
+    void World::generationWorker()
+    {
+        WorldGenerator generator(m_generator->getSeed());
+
+        while (true)
+        {
+            std::pair<int, int> coordinates;
+
+            {
+                std::unique_lock<std::mutex> lock(m_generationMutex);
+
+                m_generationCondition.wait(
+                    lock,
+                    [this]
+                    {
+                        return m_stopGeneration ||
+                            !m_generationQueue.empty();
+                    }
+                );
+
+                if (m_stopGeneration && m_generationQueue.empty())
+                {
+                    return;
+                }
+
+                coordinates = m_generationQueue.front();
+                m_generationQueue.pop_front();
+            }
+
+            auto chunk = std::make_unique<Chunk>(
+                coordinates.first,
+                coordinates.second
+            );
+
+            const auto generationStart = std::chrono::steady_clock::now();
+            generator.generateChunk(*chunk);
+            const auto generationTime =
+                std::chrono::steady_clock::now() - generationStart;
+
+            const long long generationNanoseconds =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    generationTime
+                ).count();
+
+            m_generationNanoseconds.fetch_add(generationNanoseconds);
+            m_generatedChunks.fetch_add(1);
+
+            long long previousPeak = m_generationPeakNanoseconds.load();
+            while (previousPeak < generationNanoseconds &&
+                   !m_generationPeakNanoseconds.compare_exchange_weak(
+                       previousPeak,
+                       generationNanoseconds
+                   ))
+            {
+            }
+
+            generator.resetTimings();
+
+            {
+                std::lock_guard<std::mutex> lock(m_generationMutex);
+                m_completedChunks.emplace_back(std::move(chunk));
+            }
+        }
     }
 
     long long World::makeChunkKey(

@@ -4,6 +4,7 @@
 #include "../World/WorldGenerationSettings.hpp"
 #include <algorithm>
 #include <cmath>
+#include <vector>
 #include <glm/common.hpp>
 
 namespace Voxel {
@@ -175,6 +176,88 @@ namespace Voxel {
 			chunk.getChunkZ() *
 			Chunk::DEPTH;
 
+        constexpr int SAMPLE_STEP =
+			WorldGenerationSettings::TERRAIN_SAMPLE_STEP;
+
+		const int sampleCountX =
+			((Chunk::WIDTH + SAMPLE_STEP - 1) / SAMPLE_STEP) + 1;
+		const int sampleCountZ =
+			((Chunk::DEPTH + SAMPLE_STEP - 1) / SAMPLE_STEP) + 1;
+
+		std::vector<int> terrainSamples(
+			sampleCountX * sampleCountZ
+		);
+
+		for (int sampleX = 0; sampleX < sampleCountX; ++sampleX)
+		{
+			for (int sampleZ = 0; sampleZ < sampleCountZ; ++sampleZ)
+			{
+				terrainSamples[sampleX * sampleCountZ + sampleZ] =
+					getTerrainHeight(
+						originX + sampleX * SAMPLE_STEP,
+						originZ + sampleZ * SAMPLE_STEP
+					);
+			}
+		}
+
+		std::vector<int> terrainHeights(
+			Chunk::WIDTH * Chunk::DEPTH
+		);
+
+		std::vector<Biome> biomeCache(
+			Chunk::WIDTH * Chunk::DEPTH
+		);
+
+		for (int x = 0; x < Chunk::WIDTH; ++x)
+		{
+			for (int z = 0; z < Chunk::DEPTH; ++z)
+			{
+				biomeCache[x * Chunk::DEPTH + z] =
+					getBiome(
+						originX + x,
+						originZ + z
+					);
+			}
+		}
+
+		for (int x = 0; x < Chunk::WIDTH; ++x)
+		{
+			for (int z = 0; z < Chunk::DEPTH; ++z)
+			{
+				const int sampleX = x / SAMPLE_STEP;
+				const int sampleZ = z / SAMPLE_STEP;
+				const float interpolationX =
+					static_cast<float>(x % SAMPLE_STEP) /
+					static_cast<float>(SAMPLE_STEP);
+				const float interpolationZ =
+					static_cast<float>(z % SAMPLE_STEP) /
+					static_cast<float>(SAMPLE_STEP);
+
+				const float height00 = static_cast<float>(
+					terrainSamples[sampleX * sampleCountZ + sampleZ]
+				);
+				const float height10 = static_cast<float>(
+					terrainSamples[(sampleX + 1) * sampleCountZ + sampleZ]
+				);
+				const float height01 = static_cast<float>(
+					terrainSamples[sampleX * sampleCountZ + sampleZ + 1]
+				);
+				const float height11 = static_cast<float>(
+					terrainSamples[(sampleX + 1) * sampleCountZ + sampleZ + 1]
+				);
+
+				const float heightX0 =
+					height00 + (height10 - height00) * interpolationX;
+				const float heightX1 =
+					height01 + (height11 - height01) * interpolationX;
+				const float interpolatedHeight =
+					heightX0 + (heightX1 - heightX0) * interpolationZ;
+
+				terrainHeights[x * Chunk::DEPTH + z] =
+					static_cast<int>(interpolatedHeight);
+			}
+		}
+
 		for (
 			int x = 0;
 			x < Chunk::WIDTH;
@@ -187,9 +270,23 @@ namespace Voxel {
 				++z
 				)
 			{
+               const int terrainHeight =
+					terrainHeights[x * Chunk::DEPTH + z];
+				const Biome biome =
+					biomeCache[x * Chunk::DEPTH + z];
+
+				const int generationTop =
+					std::min(
+						Chunk::HEIGHT - 1,
+						std::max(
+							terrainHeight,
+							WorldGenerationSettings::SEA_LEVEL
+						)
+					);
+
 				for (
 					int y = 0;
-					y < Chunk::HEIGHT;
+                  y <= generationTop;
 					++y
 					)
 				{
@@ -208,7 +305,9 @@ namespace Voxel {
 						generateVoxel(
 							worldX,
 							y,
-							worldZ
+                          worldZ,
+                           terrainHeight,
+							biome
 						)
 					);
 				}
@@ -223,7 +322,7 @@ namespace Voxel {
 		m_voxelGenerationTime += std::chrono::steady_clock::now() - voxelStart;
 
 		const auto vegetationStart = std::chrono::steady_clock::now();
-		generateVegetation(chunk);
+      generateVegetation(chunk, biomeCache);
 		m_vegetationGenerationTime += std::chrono::steady_clock::now() - vegetationStart;
 
 		generateLake(chunk);
@@ -320,7 +419,8 @@ namespace Voxel {
 	}
 
 	void WorldGenerator::generateVegetation(
-		Chunk& chunk
+        Chunk& chunk,
+		const std::vector<Biome>& biomeCache
 	)
 	{
 		const int originX =
@@ -355,7 +455,9 @@ namespace Voxel {
 				if (
 					shouldGenerateTree(
 						worldX,
-						worldZ
+                      worldZ,
+						chunk,
+						biomeCache
 					)
 					)
 				{
@@ -368,7 +470,9 @@ namespace Voxel {
 				if (
 					shouldGenerateCactus(
 						worldX,
-						worldZ
+                      worldZ,
+						chunk,
+						biomeCache
 					)
 					)
 				{
@@ -521,14 +625,24 @@ namespace Voxel {
 
 	bool WorldGenerator::shouldGenerateCactus(
 		int worldX,
-		int worldZ
+      int worldZ,
+		const Chunk& chunk,
+		const std::vector<Biome>& biomeCache
 	) const
 	{
+        const int localX =
+			worldX - chunk.getChunkX() * Chunk::WIDTH;
+		const int localZ =
+			worldZ - chunk.getChunkZ() * Chunk::DEPTH;
+
+		const Biome biome =
+			localX >= 0 && localX < Chunk::WIDTH &&
+			localZ >= 0 && localZ < Chunk::DEPTH
+			? biomeCache[localX * Chunk::DEPTH + localZ]
+			: getBiome(worldX, worldZ);
+
 		if (
-			getBiome(
-				worldX,
-				worldZ
-			) != Biome::Desert
+           biome != Biome::Desert
 			)
 		{
 			return false;
@@ -554,7 +668,9 @@ namespace Voxel {
 
 	bool WorldGenerator::shouldGenerateTree(
 		int worldX,
-		int worldZ
+      int worldZ,
+		const Chunk& chunk,
+		const std::vector<Biome>& biomeCache
 	) const
 	{
      for (int dx = -2; dx <= 2; ++dx)
@@ -568,11 +684,16 @@ namespace Voxel {
 			}
 		}
 
+     const int localX =
+			worldX - chunk.getChunkX() * Chunk::WIDTH;
+		const int localZ =
+			worldZ - chunk.getChunkZ() * Chunk::DEPTH;
+
 		const Biome biome =
-			getBiome(
-				worldX,
-				worldZ
-			);
+			localX >= 0 && localX < Chunk::WIDTH &&
+			localZ >= 0 && localZ < Chunk::DEPTH
+			? biomeCache[localX * Chunk::DEPTH + localZ]
+			: getBiome(worldX, worldZ);
 
 		const std::uint32_t hash =
 			hashCoordinates(
@@ -754,15 +875,11 @@ namespace Voxel {
 	VoxelID WorldGenerator::generateVoxel(
 		int worldX,
 		int worldY,
-		int worldZ
+          int worldZ,
+       int terrainHeight,
+		Biome biome
 	) const
 	{
-		const int terrainHeight =
-			getTerrainHeight(
-				worldX,
-				worldZ
-			);
-
 		if (isInRiverZone(worldX, worldZ))
 		{
             const int riverSurface =
@@ -877,12 +994,6 @@ namespace Voxel {
 		/*
 		 * Biome de cette colonne
 		 */
-
-		const Biome biome =
-			getBiome(
-				worldX,
-				worldZ
-			);
 
 		if (isInDesertZone(worldX, worldZ))
 		{

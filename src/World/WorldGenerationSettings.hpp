@@ -4,6 +4,9 @@ namespace Voxel::WorldGenerationSettings
 {
     // Nombre de chunks générés autour du centre du monde.
     inline constexpr int WORLD_RADIUS = 8;
+    inline constexpr int STREAMING_RADIUS = 8;
+    inline constexpr int STREAMING_UNLOAD_RADIUS = 10;
+    inline constexpr int STREAMING_MAX_COMPLETIONS_PER_FRAME = 2;
 
     // Fréquence des cartes de température et d'humidité.
     inline constexpr float TEMPERATURE_FREQUENCY = 0.0012f;
@@ -29,6 +32,9 @@ namespace Voxel::WorldGenerationSettings
     inline constexpr float HILL_HEIGHT = 40.0f;
     inline constexpr float DETAIL_HEIGHT = 4.0f;
     inline constexpr float MOUNTAIN_HEIGHT = 90.0f;
+
+    // Espacement des échantillons de la heightmap.
+    inline constexpr int TERRAIN_SAMPLE_STEP = 4;
 
     inline constexpr int SEA_LEVEL = 32;
 

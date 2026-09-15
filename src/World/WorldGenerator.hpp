@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <memory>
 #include <chrono>
+#include <vector>
 #include "../Math/Noise.hpp"
 #include "Biome.hpp"
 
@@ -66,7 +67,8 @@ namespace Voxel
 		std::chrono::nanoseconds m_vegetationGenerationTime{};
 
 		void generateVegetation(
-			Chunk& chunk
+            Chunk& chunk,
+			const std::vector<Biome>& biomeCache
 		);
 
 		void generateTree(
@@ -83,12 +85,16 @@ namespace Voxel
 
 		bool shouldGenerateTree(
 			int worldX,
-			int worldZ
+          int worldZ,
+			const Chunk& chunk,
+			const std::vector<Biome>& biomeCache
 		) const;
 
 		bool shouldGenerateCactus(
 			int worldX,
-			int worldZ
+          int worldZ,
+			const Chunk& chunk,
+			const std::vector<Biome>& biomeCache
 		) const;
 
 		int getTerrainHeight(
@@ -99,7 +105,9 @@ namespace Voxel
 		VoxelID generateVoxel(
 			int worldX,
 			int worldY,
-			int worldZ
+          int worldZ,
+           int terrainHeight,
+			Biome biome
 		) const;
 
 		void generateLake(

@@ -13,6 +13,7 @@
 #include <iostream>
 #include <GLFW/glfw3.h>
 #include <chrono>
+#include <iomanip>
 #include <glad/glad.h>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
@@ -56,6 +57,8 @@ namespace Voxel
 		using Clock = std::chrono::high_resolution_clock;
 
 		auto lastTime = Clock::now();
+		float displayTimer = 0.0f;
+		int displayedFrames = 0;
 
 		while (m_isRunning && !m_window->shouldClose())
 		{
@@ -67,6 +70,8 @@ namespace Voxel
 			lastTime = currentTime;
 
 			m_deltaTime = elapsed.count();
+			displayTimer += m_deltaTime;
+			++displayedFrames;
 
 			// Évite un énorme deltaTime après un freeze,
 			// un breakpoint ou une perte de focus.
@@ -79,10 +84,34 @@ namespace Voxel
 
 			update(m_deltaTime);
 
+			if (displayTimer >= 0.25f)
+			{
+				const float fps =
+					static_cast<float>(displayedFrames) /
+					displayTimer;
+				const glm::vec3& position = m_camera->getPosition();
+
+				std::cout
+					<< '\r'
+					<< std::fixed
+					<< std::setprecision(1)
+					<< "FPS: " << fps
+					<< " | Camera: ("
+					<< position.x << ", "
+					<< position.y << ", "
+					<< position.z << ")    "
+					<< std::flush;
+
+				displayTimer = 0.0f;
+				displayedFrames = 0;
+			}
+
 			render();
 
 			endFrame();
 		}
+
+		std::cout << '\n';
 	}
 	void Application::update(float deltaTime)
 	{
@@ -97,6 +126,9 @@ namespace Voxel
 		// - animations
 
 		m_camera->update(deltaTime);
+       m_world->updateStreaming(
+			m_camera->getPosition()
+		);
 	}
 
 	void Application::render()

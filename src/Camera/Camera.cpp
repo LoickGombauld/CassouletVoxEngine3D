@@ -9,8 +9,6 @@
 
 #include "../Voxel/Chunk.hpp"
 
-#include <iostream>
-
 namespace Voxel
 {
     Camera::Camera()
@@ -44,11 +42,6 @@ namespace Voxel
         // ------------------------------------------------
         // Mouse
         // ------------------------------------------------
-        std::cout << "Camera Position: "
-            << m_position.x << ", "
-            << m_position.y << ", "
-            << m_position.z << std::endl;
-
         if(Input::isMouseButtonDown(GLFW_MOUSE_BUTTON_RIGHT))
         {
             Input::setMouseCaptured(true);
