@@ -19,6 +19,17 @@ namespace Voxel
 
     public:
 
+        struct MeshData
+        {
+            std::vector<Vertex> vertices;
+            std::vector<unsigned int> indices;
+
+            bool empty() const
+            {
+                return vertices.empty();
+            }
+        };
+
         struct Face
         {
             std::uint16_t voxel = 0;
@@ -46,6 +57,11 @@ namespace Voxel
         };
 
         static std::unique_ptr<Mesh> build(
+            const World& world,
+            const Chunk& chunk
+        );
+
+        static MeshData buildData(
             const World& world,
             const Chunk& chunk
         );

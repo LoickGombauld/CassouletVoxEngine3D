@@ -11,6 +11,7 @@
 #include "../Voxel/VoxelMesher.hpp"
 #include "../Voxel/Chunk.hpp"
 #include "../GPU/NoiseCompute.hpp"
+#include "../Player/Player.hpp"
 #include <GLFW/glfw3.h>
 #include <chrono>
 #include <iomanip>
@@ -40,7 +41,13 @@ namespace Voxel
 		m_textureAtlas->bind(0);
 		m_shader->setInt("u_TextureAtlas", 0);
 		m_world = std::make_unique<World>(375);
-        m_world->generate();
+		m_world->generate();
+
+		m_player = std::make_unique<Player>(
+			*m_world,
+			*m_camera,
+			glm::vec3(0.0f, static_cast<float>(Chunk::HEIGHT), 3.0f)
+		);
 
 	}
 
@@ -126,8 +133,12 @@ namespace Voxel
 		// - animations
 
 		m_camera->update(deltaTime);
-       m_world->updateStreaming(
-			m_camera->getPosition()
+		m_player->update(deltaTime);
+	   m_world->updateStreaming(
+			m_player->getPosition()
+		);
+	   m_world->updateLodStreaming(
+			m_player->getPosition()
 		);
 	}
 
@@ -161,11 +172,21 @@ namespace Voxel
 		m_shader->setInt("u_TextureAtlas", 0);
 
        m_shader->setInt("u_RenderWater", 0);
-		m_world->render(view, projection, *m_shader);
+       m_world->render(
+			view,
+			projection,
+			*m_shader,
+			m_camera->getPosition()
+		);
 
 		glDepthMask(GL_FALSE);
 		m_shader->setInt("u_RenderWater", 1);
-		m_world->render(view, projection, *m_shader);
+       m_world->render(
+			view,
+			projection,
+			*m_shader,
+			m_camera->getPosition()
+		);
 		glDepthMask(GL_TRUE);
 
 		m_shader->unbind();

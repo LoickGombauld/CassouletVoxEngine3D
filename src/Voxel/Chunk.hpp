@@ -15,9 +15,9 @@ namespace Voxel
     {
     public:
 
-        static constexpr int WIDTH = 32;
+        static constexpr int WIDTH = 16;
         static constexpr int HEIGHT = 128;
-        static constexpr int DEPTH = 32;
+        static constexpr int DEPTH = 16;
 
         static constexpr int VOLUME =
             WIDTH * HEIGHT * DEPTH;
@@ -60,6 +60,10 @@ namespace Voxel
 
         void rebuildMesh(
             const World& world
+        );
+
+        void setMesh(
+            std::unique_ptr<Mesh> mesh
         );
 
         void generateTestTerrain(const World& world);

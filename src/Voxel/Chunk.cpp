@@ -100,6 +100,13 @@ namespace Voxel
 		);
 	}
 
+	void Chunk::setMesh(
+		std::unique_ptr<Mesh> mesh
+	)
+	{
+		m_mesh = std::move(mesh);
+	}
+
 	void Chunk::rebuildMesh(
 		const World& world
 	)

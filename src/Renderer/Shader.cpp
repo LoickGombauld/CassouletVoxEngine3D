@@ -185,13 +185,32 @@ namespace Voxel
 		return program;
 	}
 
-	void Shader::setMat4(const char* name, const glm::mat4& matrix) const
+	int Shader::getUniformLocation(
+		const char* name
+	) const
 	{
+		const auto iterator = m_uniformLocationCache.find(name);
+
+		if (iterator != m_uniformLocationCache.end())
+		{
+			return iterator->second;
+		}
+
 		const int location =
 			glGetUniformLocation(
 				m_programID,
 				name
 			);
+
+		m_uniformLocationCache.emplace(name, location);
+
+		return location;
+	}
+
+	void Shader::setMat4(const char* name, const glm::mat4& matrix) const
+	{
+		const int location =
+			getUniformLocation(name);
 
 		glUniformMatrix4fv(
 			location,
@@ -203,11 +222,19 @@ namespace Voxel
 	void Shader::setInt(const char* name, int value) const
 	{
 		const int location =
-			glGetUniformLocation(
-				m_programID,
-				name
-			);
+			getUniformLocation(name);
+
 		glUniform1i(
+			location,
+			value
+		);
+	}
+
+	void Shader::setFloat(const char* name, float value) const
+	{
+		const int location =
+			getUniformLocation(name);
+		glUniform1f(
 			location,
 			value
 		);

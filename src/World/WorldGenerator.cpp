@@ -1,4 +1,4 @@
-#include "../World/WorldGenerator.hpp"
+ï»¿#include "../World/WorldGenerator.hpp"
 #include "../Voxel/Voxel.hpp"
 #include "../Voxel/Chunk.hpp"
 #include "../World/WorldGenerationSettings.hpp"
@@ -140,12 +140,17 @@ namespace Voxel {
 	}
 
 	WorldGenerator::WorldGenerator(
-		std::uint32_t seed
+      std::uint32_t seed,
+		bool enableGpu
 	)
 		:
 		m_seed(seed),
 		m_noise(std::make_unique<Noise>(seed)),
-		m_noiseCompute(std::make_unique<NoiseCompute>(seed))
+        m_noiseCompute(
+			enableGpu
+				? std::make_unique<NoiseCompute>(seed)
+				: nullptr
+		)
 	{
 		
 		
@@ -318,7 +323,7 @@ namespace Voxel {
 			}
 			/*
 			 * ============================================================
-			 * 2. VÉGÉTATION
+			 * 2. Vâ•”Gâ•”TATION
 			 * ============================================================
 			 */
 
@@ -389,7 +394,7 @@ namespace Voxel {
 
 
 		/*
-		 * Très froid
+		 * TrÃžs froid
 		 */
 		if (temperature < 0.38f)
 		{
@@ -398,7 +403,7 @@ namespace Voxel {
 
 
 		/*
-		 * Très chaud
+		 * TrÃžs chaud
 		 */
 		if (temperature > 0.62f)
 		{
@@ -412,7 +417,7 @@ namespace Voxel {
 
 
 		/*
-		 * Température intermédiaire
+		 * TempÃšrature intermÃšdiaire
 		 */
 		if (humidity > 0.55f)
 		{
@@ -474,7 +479,7 @@ namespace Voxel {
 				 * Pour l'instant, le CPU utilise directement
 				 * fractalNoise2D().
 				 *
-				 * Les paramètres doivent être les mêmes
+				 * Les paramÃžtres doivent Ã›tre les mÃ›mes
 				 * que ceux du Compute Shader.
 				 */
 				const float cpuNoise =
@@ -538,9 +543,9 @@ namespace Voxel {
 
 
 		/*
-		 * Marge nécessaire pour les structures.
+		 * Marge nÃšcessaire pour les structures.
 		 *
-		 * Notre arbre peut s'étendre de 2 blocs autour
+		 * Notre arbre peut s'Ãštendre de 2 blocs autour
 		 * de son origine.
 		 */
 		constexpr int MARGIN =
@@ -668,7 +673,7 @@ namespace Voxel {
 					)
 				{
 					/*
-					 * Évite les coins extrêmes.
+					 * â•”vite les coins extrÃ›mes.
 					 */
 					if (
 						std::abs(dx) == radius &&
@@ -846,10 +851,10 @@ namespace Voxel {
 		 * 1. GRANDES FORMES DU MONDE
 		 * ------------------------------------------------------------
 		 *
-		 * Très basse fréquence.
+		 * TrÃžs basse frÃšquence.
 		 *
-		 * Sert principalement à déterminer où se trouvent les
-		 * régions montagneuses.
+		 * Sert principalement Ã“ dÃšterminer oÂ¨ se trouvent les
+		 * rÃšgions montagneuses.
 		 */
 		const float continental =
 			m_noise->fractalNoise2D(
@@ -872,7 +877,7 @@ namespace Voxel {
 		 * 2. RELIEF PRINCIPAL
 		 * ------------------------------------------------------------
 		 *
-		 * Donne les collines et variations générales.
+		 * Donne les collines et variations gÃšnÃšrales.
 		 */
 		const float hills =
 			m_noise->fractalNoise2D(
@@ -892,10 +897,10 @@ namespace Voxel {
 		 * 3. PETITS DETAILS
 		 * ------------------------------------------------------------
 		 *
-		 * Fréquence plus élevée.
+		 * FrÃšquence plus ÃšlevÃše.
 		 *
-		 * On garde une influence faible afin d'éviter un terrain
-		 * trop bruité.
+		 * On garde une influence faible afin d'Ãšviter un terrain
+		 * trop bruitÃš.
 		 */
 		const float detail =
 			m_noise->fractalNoise2D(
@@ -915,9 +920,9 @@ namespace Voxel {
 		 * 4. MASQUE DE MONTAGNE
 		 * ------------------------------------------------------------
 		 *
-		 * Les montagnes n'apparaissent que dans certaines régions.
+		 * Les montagnes n'apparaissent que dans certaines rÃšgions.
 		 *
-		 * smoothstep permet d'éviter une transition brutale entre
+		 * smoothstep permet d'Ãšviter une transition brutale entre
 		 * plaine et montagne.
 		 */
 		const float mountainMask =
@@ -938,13 +943,13 @@ namespace Voxel {
 			WorldGenerationSettings::BASE_TERRAIN_HEIGHT;
 
 		/*
-		 * Variation générale des collines.
+		 * Variation gÃšnÃšrale des collines.
 		 */
 		const float hillHeight =
 			hills01 * WorldGenerationSettings::HILL_HEIGHT;
 
 		/*
-		 * Petits détails.
+		 * Petits dÃštails.
 		 */
 		const float detailHeight =
 			detail01 * WorldGenerationSettings::DETAIL_HEIGHT;
@@ -955,8 +960,8 @@ namespace Voxel {
 		 * 6. MONTAGNES
 		 * ------------------------------------------------------------
 		 *
-		 * On amplifie fortement le relief dans les régions
-		 * sélectionnées par mountainMask.
+		 * On amplifie fortement le relief dans les rÃšgions
+		 * sÃšlectionnÃšes par mountainMask.
 		 */
 		const float mountainHeight =
 			mountainMask * continental01 *
@@ -1012,8 +1017,8 @@ namespace Voxel {
 	  /*
 		 * Espace au-dessus du terrain.
 		 *
-		 * Les dépressions situées sous le niveau marin
-		 * sont remplies d'eau jusqu'à SEA_LEVEL.
+		 * Les dÃšpressions situÃšes sous le niveau marin
+		 * sont remplies d'eau jusqu'Ã“ SEA_LEVEL.
 		 */
 
 		if (worldY > terrainHeight)
@@ -1115,7 +1120,7 @@ namespace Voxel {
 
 		/*
 		 * ------------------------------------------------------------
-		 * DÉSERT
+		 * Dâ•”SERT
 		 * ------------------------------------------------------------
 		 */
 
@@ -1154,7 +1159,7 @@ namespace Voxel {
 
 		/*
 		 * ------------------------------------------------------------
-		 * FORÊT
+		 * FORâ•©T
 		 * ------------------------------------------------------------
 		 */
 
@@ -1176,7 +1181,7 @@ namespace Voxel {
 
 		/*
 		 * ------------------------------------------------------------
-		 * TAÏGA
+		 * TAÂ¤GA
 		 * ------------------------------------------------------------
 		 */
 

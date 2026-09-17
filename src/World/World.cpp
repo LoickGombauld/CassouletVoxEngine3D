@@ -35,7 +35,7 @@ namespace Voxel
         const unsigned int workerCount =
             std::max(
                 1u,
-                hardwareThreads > 1 ? hardwareThreads - 1 : 1u
+                hardwareThreads > 2 ? hardwareThreads - 2 : 1u
             );
 
         m_generationWorkers.reserve(workerCount);
@@ -47,6 +47,11 @@ namespace Voxel
                 this
             );
         }
+
+        m_lodGenerationWorker = std::thread(
+            &World::lodGenerationWorker,
+            this
+        );
     }
 
     World::~World()
@@ -64,6 +69,18 @@ namespace Voxel
             {
                 worker.join();
             }
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(m_lodGenerationMutex);
+            m_stopLodGeneration = true;
+        }
+
+        m_lodGenerationCondition.notify_all();
+
+        if (m_lodGenerationWorker.joinable())
+        {
+            m_lodGenerationWorker.join();
         }
     }
     
@@ -109,77 +126,120 @@ namespace Voxel
             floorDiv(playerWorldZ, Chunk::DEPTH);
 
         constexpr int LOAD_RADIUS =
-            WorldGenerationSettings::STREAMING_RADIUS;
+            WorldGenerationSettings::SIMULATION_DISTANCE;
 
         constexpr int UNLOAD_RADIUS =
-            WorldGenerationSettings::STREAMING_UNLOAD_RADIUS;
+            WorldGenerationSettings::SIMULATION_DISTANCE +
+            WorldGenerationSettings::STREAMING_UNLOAD_MARGIN;
+
+        const auto isInsideZone = [](int offsetX, int offsetZ, int radius)
+        {
+            if constexpr (WorldGenerationSettings::USE_CIRCULAR_CHUNK_ZONE)
+            {
+                return offsetX * offsetX + offsetZ * offsetZ <=
+                    radius * radius;
+            }
+
+            return std::abs(offsetX) <= radius &&
+                std::abs(offsetZ) <= radius;
+        };
 
         StreamingTimings timings;
         processCompletedChunks(timings);
 
-        std::vector<std::pair<int, int>> chunksToQueue;
-
-        for (int offsetX = -LOAD_RADIUS; offsetX <= LOAD_RADIUS; ++offsetX)
-        {
-            for (int offsetZ = -LOAD_RADIUS; offsetZ <= LOAD_RADIUS; ++offsetZ)
-            {
-                const int chunkX = playerChunkX + offsetX;
-                const int chunkZ = playerChunkZ + offsetZ;
-
-                if (!getChunk(chunkX, chunkZ))
-                {
-                    chunksToQueue.emplace_back(chunkX, chunkZ);
-                }
-            }
-        }
-
-        std::sort(
-            chunksToQueue.begin(),
-            chunksToQueue.end(),
-            [playerChunkX, playerChunkZ](const auto& a, const auto& b)
-            {
-                const int distanceA =
-                    std::abs(a.first - playerChunkX) +
-                    std::abs(a.second - playerChunkZ);
-
-                const int distanceB =
-                    std::abs(b.first - playerChunkX) +
-                    std::abs(b.second - playerChunkZ);
-
-                return distanceA < distanceB;
-            }
-        );
-
-        for (const auto& [chunkX, chunkZ] : chunksToQueue)
-        {
-            queueChunkGeneration(chunkX, chunkZ);
-        }
+        // Le scan complet des zones de chargement/déchargement (jusqu'à
+        // (2*LOAD_RADIUS+1)² itérations) n'est utile que lorsque le
+        // joueur change de chunk. Sans cette protection, cette fonction
+        // tournerait à pleine charge à chaque frame pendant tout
+        // déplacement, causant une chute de FPS continue.
+        const bool playerChangedChunk =
+            !m_hasStreamedChunk ||
+            playerChunkX != m_lastStreamedChunkX ||
+            playerChunkZ != m_lastStreamedChunkZ;
 
         std::vector<std::pair<int, int>> chunksToUnload;
 
-        for (const auto& [key, chunk] : m_chunks)
+        if (playerChangedChunk)
         {
-            const int chunkX =
-                static_cast<int>(key >> 32);
+            m_hasStreamedChunk = true;
+            m_lastStreamedChunkX = playerChunkX;
+            m_lastStreamedChunkZ = playerChunkZ;
 
-            const int chunkZ =
-                static_cast<int>(static_cast<unsigned int>(key));
+            std::vector<std::pair<int, int>> chunksToQueue;
 
-            if (std::abs(chunkX - playerChunkX) > UNLOAD_RADIUS ||
-                std::abs(chunkZ - playerChunkZ) > UNLOAD_RADIUS)
+            for (int offsetX = -LOAD_RADIUS; offsetX <= LOAD_RADIUS; ++offsetX)
             {
-                chunksToUnload.emplace_back(chunkX, chunkZ);
+                for (int offsetZ = -LOAD_RADIUS; offsetZ <= LOAD_RADIUS; ++offsetZ)
+                {
+                    const int chunkX = playerChunkX + offsetX;
+                    const int chunkZ = playerChunkZ + offsetZ;
+
+                    if (isInsideZone(offsetX, offsetZ, LOAD_RADIUS) &&
+                        !getChunk(chunkX, chunkZ))
+                    {
+                        chunksToQueue.emplace_back(chunkX, chunkZ);
+                    }
+                }
+            }
+
+            std::sort(
+                chunksToQueue.begin(),
+                chunksToQueue.end(),
+                [playerChunkX, playerChunkZ](const auto& a, const auto& b)
+                {
+                    const int distanceA =
+                        std::abs(a.first - playerChunkX) +
+                        std::abs(a.second - playerChunkZ);
+
+                    const int distanceB =
+                        std::abs(b.first - playerChunkX) +
+                        std::abs(b.second - playerChunkZ);
+
+                    return distanceA < distanceB;
+                }
+            );
+
+            for (const auto& [chunkX, chunkZ] : chunksToQueue)
+            {
+                queueChunkGeneration(chunkX, chunkZ);
+            }
+
+            for (const auto& [key, chunk] : m_chunks)
+            {
+                const int chunkX =
+                    static_cast<int>(key >> 32);
+
+                const int chunkZ =
+                    static_cast<int>(static_cast<unsigned int>(key));
+
+                if (!isInsideZone(
+                        chunkX - playerChunkX,
+                        chunkZ - playerChunkZ,
+                        UNLOAD_RADIUS
+                    ))
+                {
+                    chunksToUnload.emplace_back(chunkX, chunkZ);
+                }
+            }
+
+            for (const auto& [chunkX, chunkZ] : chunksToUnload)
+            {
+                {
+                    std::lock_guard<std::mutex> lock(m_meshWorldMutex);
+                    m_chunks.erase(makeChunkKey(chunkX, chunkZ));
+                }
+
+                queueMeshRebuild(chunkX - 1, chunkZ);
+                queueMeshRebuild(chunkX + 1, chunkZ);
+                queueMeshRebuild(chunkX, chunkZ - 1);
+                queueMeshRebuild(chunkX, chunkZ + 1);
             }
         }
 
-        for (const auto& [chunkX, chunkZ] : chunksToUnload)
-        {
-            m_chunks.erase(makeChunkKey(chunkX, chunkZ));
-
-            const auto meshStart = std::chrono::steady_clock::now();
-            rebuildChunkAndNeighbors(chunkX, chunkZ);
-            timings.meshes += std::chrono::steady_clock::now() - meshStart;
-        }
+        // Ces opérations restent bornées (quelques éléments par frame au
+        // maximum) et doivent continuer à s'exécuter à chaque frame,
+        // même si le joueur reste dans le même chunk.
+        processDirtyMeshes(timings);
 
         const long long generatedNanoseconds =
             m_generationNanoseconds.exchange(0);
@@ -229,6 +289,92 @@ namespace Voxel
         m_generationCondition.notify_one();
     }
 
+    void World::queueMeshRebuild(
+        int chunkX,
+        int chunkZ
+    )
+    {
+        const long long key = makeChunkKey(chunkX, chunkZ);
+
+            std::lock_guard<std::mutex> worldLock(m_meshWorldMutex);
+
+            if (!m_chunks.contains(key))
+        {
+            return;
+        }
+
+        if (m_dirtyMeshKeys.insert(key).second)
+        {
+            m_dirtyMeshQueue.emplace_back(chunkX, chunkZ);
+        }
+    }
+
+    void World::processDirtyMeshes(
+        StreamingTimings& timings
+    )
+    {
+        if (m_meshFuture.valid())
+        {
+            if (m_meshFuture.wait_for(std::chrono::seconds(0)) !=
+                std::future_status::ready)
+            {
+                return;
+            }
+
+            const auto meshStart = std::chrono::steady_clock::now();
+            VoxelMesher::MeshData data = m_meshFuture.get();
+
+            Chunk* chunk = getChunk(
+                m_meshJobChunkX,
+                m_meshJobChunkZ
+            );
+
+            if (chunk && !data.empty())
+            {
+                chunk->setMesh(
+                    std::make_unique<Mesh>(
+                        data.vertices,
+                        data.indices
+                    )
+                );
+                ++timings.integratedChunks;
+            }
+
+            timings.meshes +=
+                std::chrono::steady_clock::now() - meshStart;
+        }
+
+        if (!m_meshFuture.valid() && !m_dirtyMeshQueue.empty())
+        {
+            const auto [chunkX, chunkZ] = m_dirtyMeshQueue.front();
+            m_dirtyMeshQueue.pop_front();
+            m_dirtyMeshKeys.erase(makeChunkKey(chunkX, chunkZ));
+
+            if (!getChunk(chunkX, chunkZ))
+            {
+                return;
+            }
+
+            m_meshJobChunkX = chunkX;
+            m_meshJobChunkZ = chunkZ;
+            m_meshFuture = std::async(
+                std::launch::async,
+                [this, chunkX, chunkZ]()
+                {
+                    std::lock_guard<std::mutex> lock(m_meshWorldMutex);
+                    Chunk* chunk = getChunk(chunkX, chunkZ);
+
+                    if (!chunk)
+                    {
+                        return VoxelMesher::MeshData{};
+                    }
+
+                    return VoxelMesher::buildData(*this, *chunk);
+                }
+            );
+        }
+    }
+
     void World::processCompletedChunks(
         StreamingTimings& timings
     )
@@ -270,16 +416,18 @@ namespace Voxel
                     std::chrono::steady_clock::now() - integrationStart;
                 ++timings.integratedChunks;
 
-                const auto meshStart = std::chrono::steady_clock::now();
-                rebuildChunkAndNeighbors(chunkX, chunkZ);
-                timings.meshes += std::chrono::steady_clock::now() - meshStart;
+                queueMeshRebuild(chunkX, chunkZ);
+                queueMeshRebuild(chunkX - 1, chunkZ);
+                queueMeshRebuild(chunkX + 1, chunkZ);
+                queueMeshRebuild(chunkX, chunkZ - 1);
+                queueMeshRebuild(chunkX, chunkZ + 1);
             }
         }
     }
 
     void World::generationWorker()
     {
-        WorldGenerator generator(m_generator->getSeed());
+            WorldGenerator generator(m_generator->getSeed(), false);
 
         while (true)
         {
@@ -340,6 +488,276 @@ namespace Voxel
                 m_completedChunks.emplace_back(std::move(chunk));
             }
         }
+    }
+
+    void World::queueLodChunkGeneration(
+        int chunkX,
+        int chunkZ
+    )
+    {
+        const long long key = makeChunkKey(chunkX, chunkZ);
+
+        std::lock_guard<std::mutex> lock(m_lodGenerationMutex);
+
+        if (m_pendingLodChunks.contains(key))
+        {
+            return;
+        }
+
+        m_pendingLodChunks.insert(key);
+        m_lodGenerationQueue.emplace_back(chunkX, chunkZ);
+        m_lodGenerationCondition.notify_one();
+    }
+
+    void World::processCompletedLodChunks()
+    {
+        for (int count = 0;
+             count < WorldGenerationSettings::STREAMING_MAX_COMPLETIONS_PER_FRAME;
+             ++count)
+        {
+            std::unique_ptr<LodChunk> completedLodChunk;
+
+            {
+                std::lock_guard<std::mutex> lock(m_lodGenerationMutex);
+
+                if (m_completedLodChunks.empty())
+                {
+                    break;
+                }
+
+                completedLodChunk = std::move(m_completedLodChunks.front());
+                m_completedLodChunks.pop_front();
+                m_pendingLodChunks.erase(
+                    makeChunkKey(
+                        completedLodChunk->getChunkX(),
+                        completedLodChunk->getChunkZ()
+                    )
+                );
+            }
+
+            const int chunkX = completedLodChunk->getChunkX();
+            const int chunkZ = completedLodChunk->getChunkZ();
+            const long long key = makeChunkKey(chunkX, chunkZ);
+
+            if (!m_lodChunks.contains(key))
+            {
+                m_lodChunks.emplace(key, std::move(completedLodChunk));
+
+                std::lock_guard<std::mutex> meshLock(m_lodMeshMutex);
+
+                if (m_dirtyLodMeshKeys.insert(key).second)
+                {
+                    m_dirtyLodMeshQueue.emplace_back(chunkX, chunkZ);
+                }
+            }
+        }
+    }
+
+    void World::processDirtyLodMeshes()
+    {
+        if (m_lodMeshFuture.valid())
+        {
+            if (m_lodMeshFuture.wait_for(std::chrono::seconds(0)) !=
+                std::future_status::ready)
+            {
+                return;
+            }
+
+            LodChunk::LodMeshData data = m_lodMeshFuture.get();
+
+            const long long key =
+                makeChunkKey(m_lodMeshJobChunkX, m_lodMeshJobChunkZ);
+
+            auto iterator = m_lodChunks.find(key);
+
+            if (iterator != m_lodChunks.end() && !data.empty())
+            {
+                std::vector<Vertex> vertices;
+                vertices.reserve(data.vertices.size());
+
+                for (const auto& lodVertex : data.vertices)
+                {
+                    Vertex vertex{};
+                    vertex.position = lodVertex.position;
+                    vertex.normal = lodVertex.normal;
+                    vertex.uv = glm::vec2(0.0f, 0.0f);
+                    vertex.ao = 1.0f;
+                    vertex.textureIndex = 0.0f;
+
+                    vertices.push_back(vertex);
+                }
+
+                iterator->second->setMesh(
+                    std::make_unique<Mesh>(
+                        vertices,
+                        data.indices
+                    )
+                );
+            }
+        }
+
+        if (!m_lodMeshFuture.valid() && !m_dirtyLodMeshQueue.empty())
+        {
+            const auto [chunkX, chunkZ] = m_dirtyLodMeshQueue.front();
+            m_dirtyLodMeshQueue.pop_front();
+            m_dirtyLodMeshKeys.erase(makeChunkKey(chunkX, chunkZ));
+
+            const auto iterator =
+                m_lodChunks.find(makeChunkKey(chunkX, chunkZ));
+
+            if (iterator == m_lodChunks.end())
+            {
+                return;
+            }
+
+            m_lodMeshJobChunkX = chunkX;
+            m_lodMeshJobChunkZ = chunkZ;
+
+            LodChunk* lodChunk = iterator->second.get();
+
+            m_lodMeshFuture = std::async(
+                std::launch::async,
+                [lodChunk]()
+                {
+                    return lodChunk->buildMeshData();
+                }
+            );
+        }
+    }
+
+    void World::lodGenerationWorker()
+    {
+        WorldGenerator generator(m_generator->getSeed(), false);
+
+        constexpr int LOD_STEP = 4;
+
+        while (true)
+        {
+            std::pair<int, int> coordinates;
+
+            {
+                std::unique_lock<std::mutex> lock(m_lodGenerationMutex);
+
+                m_lodGenerationCondition.wait(
+                    lock,
+                    [this]
+                    {
+                        return m_stopLodGeneration ||
+                            !m_lodGenerationQueue.empty();
+                    }
+                );
+
+                if (m_stopLodGeneration && m_lodGenerationQueue.empty())
+                {
+                    return;
+                }
+
+                coordinates = m_lodGenerationQueue.front();
+                m_lodGenerationQueue.pop_front();
+            }
+
+            auto lodChunk = std::make_unique<LodChunk>(
+                coordinates.first,
+                coordinates.second,
+                LOD_STEP
+            );
+
+            lodChunk->generateHeights(generator);
+
+            {
+                std::lock_guard<std::mutex> lock(m_lodGenerationMutex);
+                m_completedLodChunks.emplace_back(std::move(lodChunk));
+            }
+        }
+    }
+
+    void World::updateLodStreaming(
+        const glm::vec3& playerPosition
+    )
+    {
+        const int playerWorldX =
+            static_cast<int>(std::floor(playerPosition.x));
+
+        const int playerWorldZ =
+            static_cast<int>(std::floor(playerPosition.z));
+
+        const int playerChunkX =
+            floorDiv(playerWorldX, Chunk::WIDTH);
+
+        const int playerChunkZ =
+            floorDiv(playerWorldZ, Chunk::DEPTH);
+
+        constexpr int LOD_INNER_RADIUS =
+            WorldGenerationSettings::LOD_START_DISTANCE -
+            WorldGenerationSettings::LOD_FADE_MARGIN;
+
+        constexpr int LOD_OUTER_RADIUS =
+            WorldGenerationSettings::LOD_END_DISTANCE;
+
+        processCompletedLodChunks();
+
+        // Comme pour updateStreaming, le scan complet de la zone LOD
+        // (jusqu'à (2*LOD_OUTER_RADIUS+1)² itérations, potentiellement
+        // plusieurs milliers) ne doit s'exécuter que lorsque le joueur
+        // change de chunk, pas à chaque frame.
+        const bool playerChangedLodChunk =
+            !m_hasLodStreamedChunk ||
+            playerChunkX != m_lastLodStreamedChunkX ||
+            playerChunkZ != m_lastLodStreamedChunkZ;
+
+        if (playerChangedLodChunk)
+        {
+            m_hasLodStreamedChunk = true;
+            m_lastLodStreamedChunkX = playerChunkX;
+            m_lastLodStreamedChunkZ = playerChunkZ;
+
+            for (int offsetX = -LOD_OUTER_RADIUS; offsetX <= LOD_OUTER_RADIUS; ++offsetX)
+            {
+                for (int offsetZ = -LOD_OUTER_RADIUS; offsetZ <= LOD_OUTER_RADIUS; ++offsetZ)
+                {
+                    const int distanceSquared = offsetX * offsetX + offsetZ * offsetZ;
+
+                    if (distanceSquared > LOD_OUTER_RADIUS * LOD_OUTER_RADIUS ||
+                        distanceSquared <= LOD_INNER_RADIUS * LOD_INNER_RADIUS)
+                    {
+                        continue;
+                    }
+
+                    const int chunkX = playerChunkX + offsetX;
+                    const int chunkZ = playerChunkZ + offsetZ;
+
+                    if (!m_lodChunks.contains(makeChunkKey(chunkX, chunkZ)))
+                    {
+                        queueLodChunkGeneration(chunkX, chunkZ);
+                    }
+                }
+            }
+
+            std::vector<std::pair<int, int>> lodChunksToUnload;
+
+            for (const auto& [key, lodChunk] : m_lodChunks)
+            {
+                const int chunkX = static_cast<int>(key >> 32);
+                const int chunkZ = static_cast<int>(static_cast<unsigned int>(key));
+
+                const int offsetX = chunkX - playerChunkX;
+                const int offsetZ = chunkZ - playerChunkZ;
+                const int distanceSquared = offsetX * offsetX + offsetZ * offsetZ;
+
+                if (distanceSquared > LOD_OUTER_RADIUS * LOD_OUTER_RADIUS ||
+                    distanceSquared <= LOD_INNER_RADIUS * LOD_INNER_RADIUS)
+                {
+                    lodChunksToUnload.emplace_back(chunkX, chunkZ);
+                }
+            }
+
+            for (const auto& [chunkX, chunkZ] : lodChunksToUnload)
+            {
+                m_lodChunks.erase(makeChunkKey(chunkX, chunkZ));
+            }
+        }
+
+        processDirtyLodMeshes();
     }
 
     long long World::makeChunkKey(
@@ -617,7 +1035,7 @@ namespace Voxel
         {
             workers.emplace_back([&]()
             {
-                WorldGenerator generator(m_generator->getSeed());
+                WorldGenerator generator(m_generator->getSeed(), false);
 
                 while (true)
                 {
@@ -677,7 +1095,8 @@ namespace Voxel
     void World::render(
         const glm::mat4& view,
         const glm::mat4& projection,
-        Shader& shader
+        Shader& shader,
+        const glm::vec3& playerPosition
     )
     {
         shader.setMat4(
@@ -690,8 +1109,86 @@ namespace Voxel
             projection
         );
 
+        const int playerChunkX = floorDiv(
+            static_cast<int>(std::floor(playerPosition.x)),
+            Chunk::WIDTH
+        );
+        const int playerChunkZ = floorDiv(
+            static_cast<int>(std::floor(playerPosition.z)),
+            Chunk::DEPTH
+        );
+
+        const auto isInsideRenderZone = [](int offsetX, int offsetZ)
+        {
+            // Les chunks complets sont rendus jusqu'à LOD_START_DISTANCE,
+            // plus une marge de fondu pour se chevaucher légèrement avec
+            // les LodChunk (transition en fondu croisé, pas de coupure nette).
+            constexpr int FADE_RADIUS =
+                WorldGenerationSettings::LOD_START_DISTANCE +
+                WorldGenerationSettings::LOD_FADE_MARGIN;
+
+            if constexpr (WorldGenerationSettings::USE_CIRCULAR_CHUNK_ZONE)
+            {
+                return offsetX * offsetX + offsetZ * offsetZ <=
+                    FADE_RADIUS * FADE_RADIUS;
+            }
+
+            return std::abs(offsetX) <= FADE_RADIUS &&
+                std::abs(offsetZ) <= FADE_RADIUS;
+        };
+
+        // Alpha de fondu pour un chunk complet : 1.0 avant la zone de
+        // transition, puis décroît linéairement jusqu'à 0.0 à la limite
+        // de fondu.
+        const auto computeChunkFadeAlpha = [](int offsetX, int offsetZ)
+        {
+            const float distance = std::sqrt(
+                static_cast<float>(offsetX * offsetX + offsetZ * offsetZ)
+            );
+
+            constexpr float fadeStart =
+                static_cast<float>(WorldGenerationSettings::LOD_START_DISTANCE) -
+                static_cast<float>(WorldGenerationSettings::LOD_FADE_MARGIN);
+
+            constexpr float fadeEnd =
+                static_cast<float>(WorldGenerationSettings::LOD_START_DISTANCE) +
+                static_cast<float>(WorldGenerationSettings::LOD_FADE_MARGIN);
+
+            if (distance <= fadeStart)
+            {
+                return 1.0f;
+            }
+
+            if (distance >= fadeEnd)
+            {
+                return 0.0f;
+            }
+
+            return 1.0f - (distance - fadeStart) / (fadeEnd - fadeStart);
+        };
+
         for (auto& [key, chunk] : m_chunks)
         {
+            const int chunkX = static_cast<int>(key >> 32);
+            const int chunkZ = static_cast<int>(
+                static_cast<unsigned int>(key)
+            );
+
+            const int offsetX = chunkX - playerChunkX;
+            const int offsetZ = chunkZ - playerChunkZ;
+
+            if (!isInsideRenderZone(offsetX, offsetZ))
+            {
+                continue;
+            }
+
+            const float fadeAlpha = computeChunkFadeAlpha(offsetX, offsetZ);
+
+            if (fadeAlpha <= 0.0f)
+            {
+                continue;
+            }
+
             const glm::mat4 model =
                 glm::translate(
                     glm::mat4(1.0f),
@@ -703,7 +1200,115 @@ namespace Voxel
                 model
             );
 
+            shader.setFloat(
+                "u_FadeAlpha",
+                fadeAlpha
+            );
+
             chunk->render();
         }
+
+        const auto isInsideLodZone = [](int offsetX, int offsetZ)
+        {
+            const int distanceSquared = offsetX * offsetX + offsetZ * offsetZ;
+
+            constexpr int LOD_INNER_RADIUS =
+                WorldGenerationSettings::LOD_START_DISTANCE -
+                WorldGenerationSettings::LOD_FADE_MARGIN;
+
+            constexpr int LOD_OUTER_RADIUS =
+                WorldGenerationSettings::LOD_END_DISTANCE;
+
+            return distanceSquared > LOD_INNER_RADIUS * LOD_INNER_RADIUS &&
+                distanceSquared <= LOD_OUTER_RADIUS * LOD_OUTER_RADIUS;
+        };
+
+        // Alpha de fondu pour un LodChunk : 0.0 avant la zone de
+        // transition, puis croît linéairement jusqu'à 1.0.
+        const auto computeLodFadeAlpha = [](int offsetX, int offsetZ)
+        {
+            const float distance = std::sqrt(
+                static_cast<float>(offsetX * offsetX + offsetZ * offsetZ)
+            );
+
+            constexpr float fadeStart =
+                static_cast<float>(WorldGenerationSettings::LOD_START_DISTANCE) -
+                static_cast<float>(WorldGenerationSettings::LOD_FADE_MARGIN);
+
+            constexpr float fadeEnd =
+                static_cast<float>(WorldGenerationSettings::LOD_START_DISTANCE) +
+                static_cast<float>(WorldGenerationSettings::LOD_FADE_MARGIN);
+
+            if (distance <= fadeStart)
+            {
+                return 0.0f;
+            }
+
+            if (distance >= fadeEnd)
+            {
+                return 1.0f;
+            }
+
+            return (distance - fadeStart) / (fadeEnd - fadeStart);
+        };
+
+        for (auto& [key, lodChunk] : m_lodChunks)
+        {
+            const int chunkX = static_cast<int>(key >> 32);
+            const int chunkZ = static_cast<int>(
+                static_cast<unsigned int>(key)
+            );
+
+            const int offsetX = chunkX - playerChunkX;
+            const int offsetZ = chunkZ - playerChunkZ;
+
+            if (!isInsideLodZone(offsetX, offsetZ))
+            {
+                continue;
+            }
+
+            Mesh* mesh = lodChunk->getMesh();
+
+            if (!mesh)
+            {
+                continue;
+            }
+
+            const float fadeAlpha = computeLodFadeAlpha(offsetX, offsetZ);
+
+            if (fadeAlpha <= 0.0f)
+            {
+                continue;
+            }
+
+            const glm::mat4 model =
+                glm::translate(
+                    glm::mat4(1.0f),
+                    glm::vec3(
+                        static_cast<float>(chunkX * Chunk::WIDTH),
+                        0.0f,
+                        static_cast<float>(chunkZ * Chunk::DEPTH)
+                    )
+                );
+
+            shader.setMat4(
+                "u_Model",
+                model
+            );
+
+            shader.setFloat(
+                "u_FadeAlpha",
+                fadeAlpha
+            );
+
+            mesh->draw();
+        }
+
+        // Réinitialise l'alpha de fondu pour les prochains appels de
+        // rendu qui n'en tiennent pas compte.
+        shader.setFloat(
+            "u_FadeAlpha",
+            1.0f
+        );
     }
 }

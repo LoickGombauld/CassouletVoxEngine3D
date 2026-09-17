@@ -2,11 +2,33 @@
 
 namespace Voxel::WorldGenerationSettings
 {
-    // Nombre de chunks générés autour du centre du monde.
-    inline constexpr int WORLD_RADIUS = 4;
-    inline constexpr int STREAMING_RADIUS = WORLD_RADIUS;
-    inline constexpr int STREAMING_UNLOAD_RADIUS = WORLD_RADIUS;
+    // Distances exprimées en nombre de chunks autour du joueur.
+    inline constexpr int SIMULATION_DISTANCE = 16;
+    inline constexpr int RENDER_DISTANCE = 24;
+    inline constexpr bool USE_CIRCULAR_CHUNK_ZONE = true;
+
+    // Rayon utilisé pour la pré-génération initiale.
+    inline constexpr int WORLD_RADIUS = SIMULATION_DISTANCE;
+
+    // Marge conservée avant de décharger un chunk. Doit être au moins
+    // égale à LOD_FADE_MARGIN afin que les chunks complets restent
+    // chargés pendant toute la durée du fondu croisé avec les LodChunk.
+    inline constexpr int STREAMING_UNLOAD_MARGIN = 3;
     inline constexpr int STREAMING_MAX_COMPLETIONS_PER_FRAME = 2;
+    inline constexpr int STREAMING_MAX_MESH_REBUILDS_PER_FRAME = 1;
+
+    // Distance à partir de laquelle les LodChunk prennent le relais des
+    // chunks complets. Alignée sur la distance de déchargement pour
+    // garantir qu'aucun chunk complet ne soit encore chargé dans la zone
+    // LOD (évite tout chevauchement visuel entre les deux rendus).
+    inline constexpr int LOD_START_DISTANCE =
+        SIMULATION_DISTANCE + STREAMING_UNLOAD_MARGIN;
+
+    inline constexpr int LOD_END_DISTANCE = RENDER_DISTANCE * 2;
+
+    // Largeur (en chunks) de la zone de fondu croisé entre les chunks
+    // complets et les LodChunk, centrée sur LOD_START_DISTANCE.
+    inline constexpr int LOD_FADE_MARGIN = STREAMING_UNLOAD_MARGIN;
 
     // Fréquence des cartes de température et d'humidité.
     inline constexpr float TEMPERATURE_FREQUENCY = 0.0012f;
@@ -28,10 +50,10 @@ namespace Voxel::WorldGenerationSettings
     inline constexpr int CACTUS_HEIGHT_VARIATION = 3;
 
     // Hauteur et relief du terrain.
-    inline constexpr float BASE_TERRAIN_HEIGHT = 28.0f;
-    inline constexpr float HILL_HEIGHT = 40.0f;
-    inline constexpr float DETAIL_HEIGHT = 4.0f;
-    inline constexpr float MOUNTAIN_HEIGHT = 90.0f;
+    inline constexpr float BASE_TERRAIN_HEIGHT = 20.0f;
+    inline constexpr float HILL_HEIGHT = 60.0f;
+    inline constexpr float DETAIL_HEIGHT = 16.0f;
+    inline constexpr float MOUNTAIN_HEIGHT = 128.0f;
 
     // Espacement des échantillons de la heightmap.
     inline constexpr int TERRAIN_SAMPLE_STEP = 4;
@@ -47,7 +69,7 @@ namespace Voxel::WorldGenerationSettings
     inline constexpr int LAKE_RADIUS = 100;
     inline constexpr int LAKE_BOTTOM = 1;
     inline constexpr int LAKE_DEPTH = 12;
-    inline constexpr float LAKE_SHAPE_VARIATION = 0.12f;
+    inline constexpr float LAKE_SHAPE_VARIATION = 0.2f;
 
     // Zone désertique garantie dans la zone initiale.
     inline constexpr bool GUARANTEE_DESERT = false;
@@ -55,11 +77,11 @@ namespace Voxel::WorldGenerationSettings
     inline constexpr int DESERT_SPAWN_CHUNK_Z = -5;
     inline constexpr int DESERT_CENTER_OFFSET_X = 8;
     inline constexpr int DESERT_CENTER_OFFSET_Z = 8;
-    inline constexpr int DESERT_RADIUS = 8;
+    inline constexpr int DESERT_RADIUS = 32;
 
     // Rivière traversant la zone générée au démarrage.
     inline constexpr bool GUARANTEE_RIVER = true;
-    inline constexpr float RIVER_FREQUENCY = 0.025f;
+    inline constexpr float RIVER_FREQUENCY = 0.25f;
     inline constexpr float RIVER_AMPLITUDE = 36.0f;
     inline constexpr int RIVER_WIDTH = 3;
     inline constexpr int RIVER_BOTTOM = 28;

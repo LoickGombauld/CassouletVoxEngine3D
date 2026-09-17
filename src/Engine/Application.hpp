@@ -1,4 +1,5 @@
 #pragma once
+#pragma once
 
 #ifdef _WIN32
 #   include <Windows.h>
@@ -15,6 +16,7 @@ namespace Voxel
 	class Input;
 	class Camera;
 	class Texture;
+	class Player;
 
 
 	class Application
@@ -50,5 +52,6 @@ namespace Voxel
 		std::unique_ptr<Camera> m_camera;
 		std::unique_ptr<World> m_world;
 		std::unique_ptr<Texture> m_textureAtlas;
+		std::unique_ptr<Player> m_player;
 	};
 }

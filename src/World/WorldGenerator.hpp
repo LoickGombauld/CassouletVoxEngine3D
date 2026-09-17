@@ -1,4 +1,6 @@
+﻿#pragma once
 #pragma once
+
 #include <cstdint>
 #include <memory>
 #include <chrono>
@@ -26,7 +28,8 @@ namespace Voxel
 	public:
 
 		explicit WorldGenerator(
-			std::uint32_t seed
+          std::uint32_t seed,
+			bool enableGpu = true
 		);
 
 		void generateChunk(
@@ -55,6 +58,11 @@ namespace Voxel
 		) const;
 
 		Biome getBiome(
+			int worldX,
+			int worldZ
+		) const;
+
+		int getTerrainHeight(
 			int worldX,
 			int worldZ
 		) const;
@@ -97,11 +105,6 @@ namespace Voxel
           int worldZ,
 			const Chunk& chunk,
 			const std::vector<Biome>& biomeCache
-		) const;
-
-		int getTerrainHeight(
-			int worldX,
-			int worldZ
 		) const;
 
 		VoxelID generateVoxel(

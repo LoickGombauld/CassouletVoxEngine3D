@@ -8,14 +8,17 @@
 #include <condition_variable>
 #include <thread>
 #include <vector>
+#include <future>
 #include <atomic>
 #include <chrono>
 #include <glm/ext/matrix_float4x4.hpp>
 #include <glm/vec3.hpp>
 #include "../World/WorldGenerator.hpp"
+#include "../Voxel/VoxelMesher.hpp"
+#include "../Voxel/LodChunk.hpp"
 namespace Voxel
 {
-    class Shader;
+	class Shader;
 	class Chunk;
 
 
@@ -73,7 +76,12 @@ namespace Voxel
         void render(
             const glm::mat4& view,
             const glm::mat4& projection,
-            Shader& shader
+            Shader& shader,
+            const glm::vec3& playerPosition
+        );
+
+        void updateLodStreaming(
+            const glm::vec3& playerPosition
         );
 
     private:
@@ -104,12 +112,32 @@ namespace Voxel
             StreamingTimings& timings
         );
 
+        void processDirtyMeshes(
+            StreamingTimings& timings
+        );
+
+        void queueMeshRebuild(
+            int chunkX,
+            int chunkZ
+        );
+
         void queueChunkGeneration(
             int chunkX,
             int chunkZ
         );
 
         void generationWorker();
+
+        void queueLodChunkGeneration(
+            int chunkX,
+            int chunkZ
+        );
+
+        void processCompletedLodChunks();
+
+        void processDirtyLodMeshes();
+
+        void lodGenerationWorker();
 
     private:
 
@@ -120,14 +148,52 @@ namespace Voxel
         std::unique_ptr<WorldGenerator> m_generator;
 
         std::mutex m_generationMutex;
+        std::mutex m_meshWorldMutex;
         std::condition_variable m_generationCondition;
         std::deque<std::pair<int, int>> m_generationQueue;
         std::deque<std::unique_ptr<Chunk>> m_completedChunks;
         std::unordered_set<long long> m_pendingChunks;
+        std::deque<std::pair<int, int>> m_dirtyMeshQueue;
+        std::unordered_set<long long> m_dirtyMeshKeys;
+        std::future<VoxelMesher::MeshData> m_meshFuture;
+        int m_meshJobChunkX = 0;
+        int m_meshJobChunkZ = 0;
         std::vector<std::thread> m_generationWorkers;
         bool m_stopGeneration = false;
         std::atomic<long long> m_generationNanoseconds{ 0 };
         std::atomic<long long> m_generationPeakNanoseconds{ 0 };
         std::atomic<int> m_generatedChunks{ 0 };
+
+        // File de génération LOD, séparée de la file des chunks complets.
+        std::unordered_map<
+            long long,
+            std::unique_ptr<LodChunk>
+        > m_lodChunks;
+
+        std::mutex m_lodGenerationMutex;
+        std::mutex m_lodMeshMutex;
+        std::condition_variable m_lodGenerationCondition;
+        std::deque<std::pair<int, int>> m_lodGenerationQueue;
+        std::deque<std::unique_ptr<LodChunk>> m_completedLodChunks;
+        std::unordered_set<long long> m_pendingLodChunks;
+        std::deque<std::pair<int, int>> m_dirtyLodMeshQueue;
+        std::unordered_set<long long> m_dirtyLodMeshKeys;
+        std::future<LodChunk::LodMeshData> m_lodMeshFuture;
+        int m_lodMeshJobChunkX = 0;
+        int m_lodMeshJobChunkZ = 0;
+        std::thread m_lodGenerationWorker;
+        bool m_stopLodGeneration = false;
+
+        // Dernier chunk du joueur pour lequel le scan complet des zones
+        // de streaming (chunks complets et LOD) a été effectué. Évite de
+        // refaire ce scan coûteux à chaque frame quand le joueur reste
+        // dans le même chunk.
+        bool m_hasStreamedChunk = false;
+        int m_lastStreamedChunkX = 0;
+        int m_lastStreamedChunkZ = 0;
+
+        bool m_hasLodStreamedChunk = false;
+        int m_lastLodStreamedChunkX = 0;
+        int m_lastLodStreamedChunkZ = 0;
     };
 }

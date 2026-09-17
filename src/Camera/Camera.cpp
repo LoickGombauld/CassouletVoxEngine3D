@@ -83,51 +83,8 @@ namespace Voxel
             updateVectors();
         }
 
-        // ------------------------------------------------
-        // Keyboard
-        // ------------------------------------------------
-
-        float speed =
-            m_moveSpeed * deltaTime;
-
-        if (Input::isKeyDown(GLFW_KEY_LEFT_SHIFT))
-        {
-            speed *= 2.0f;
-        }
-
-        if (Input::isKeyDown(GLFW_KEY_W))
-        {
-            m_position +=
-                m_front * speed;
-        }
-
-        if (Input::isKeyDown(GLFW_KEY_S))
-        {
-            m_position -=
-                m_front * speed;
-        }
-
-        if (Input::isKeyDown(GLFW_KEY_D))
-        {
-            m_position +=
-                m_right * speed;
-        }
-
-        if (Input::isKeyDown(GLFW_KEY_A))
-        {
-            m_position -=
-                m_right * speed;
-        }
-
-        if (Input::isKeyDown(GLFW_KEY_SPACE))
-        {
-            m_position.y += speed;
-        }
-
-        if (Input::isKeyDown(GLFW_KEY_LEFT_CONTROL))
-        {
-            m_position.y -= speed;
-        }
+        // Le déplacement (clavier) est désormais géré par la classe
+        // Player, qui pilote la physique et appelle setPosition().
     }
 
     void Camera::updateVectors()

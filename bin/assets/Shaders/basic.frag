@@ -8,14 +8,45 @@ flat in int v_TextureIndex;
 uniform sampler2D u_TextureAtlas;
 uniform int u_RenderWater;
 
+// Alpha de fondu croisé (0 = totalement transparent/discard, 1 = opaque).
+// Utilisé pour la transition entre chunks complets et LodChunk.
+uniform float u_FadeAlpha;
+
 out vec4 FragColor;
 
 const int ATLAS_SIZE = 256;
 const int TILE_SIZE = 16;
 const int ATLAS_COLUMNS = 16;
 
+// Motif de dithering 4x4 (Bayer) pour un fondu sans transparence réelle,
+// afin d'éviter les problèmes de tri de la transparence.
+float ditherThreshold(vec2 screenPosition)
+{
+    const mat4 bayer = mat4(
+        0.0,  8.0,  2.0, 10.0,
+        12.0, 4.0, 14.0,  6.0,
+        3.0, 11.0,  1.0,  9.0,
+        15.0, 7.0, 13.0,  5.0
+    );
+
+    int x = int(mod(screenPosition.x, 4.0));
+    int y = int(mod(screenPosition.y, 4.0));
+
+    return bayer[y][x] / 16.0;
+}
+
 void main()
 {
+    if (u_FadeAlpha < 1.0)
+    {
+        float threshold = ditherThreshold(gl_FragCoord.xy);
+
+        if (u_FadeAlpha <= threshold)
+        {
+            discard;
+        }
+    }
+
     // ------------------------------------------------------------
     // UV locale à l'intérieur de la texture répétée
     // ------------------------------------------------------------

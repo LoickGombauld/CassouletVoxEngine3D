@@ -234,6 +234,21 @@ namespace Voxel
 		VoxelMesher::build(const World& world, const Chunk& chunk)
 
 	{
+       MeshData data = buildData(world, chunk);
+
+		if (data.empty())
+			return nullptr;
+
+		return std::make_unique<Mesh>(
+			data.vertices,
+			data.indices
+		);
+	}
+
+	VoxelMesher::MeshData
+		VoxelMesher::buildData(const World& world, const Chunk& chunk)
+
+	{
 		std::vector<Vertex> vertices;
 		std::vector<unsigned int> indices;
 
@@ -713,13 +728,10 @@ namespace Voxel
 			}
 		}
 
-		if (vertices.empty())
-			return nullptr;
-
-		return std::make_unique<Mesh>(
-			vertices,
-			indices
-		);
+       return {
+			std::move(vertices),
+			std::move(indices)
+		};
 	}
 
 
