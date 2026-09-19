@@ -687,12 +687,11 @@ namespace Voxel
         const int playerChunkZ =
             floorDiv(playerWorldZ, Chunk::DEPTH);
 
-        constexpr int LOD_INNER_RADIUS =
+        const int LOD_INNER_RADIUS =
             WorldGenerationSettings::LOD_START_DISTANCE -
             WorldGenerationSettings::LOD_FADE_MARGIN;
 
-        constexpr int LOD_OUTER_RADIUS =
-            WorldGenerationSettings::LOD_END_DISTANCE;
+        const int LOD_OUTER_RADIUS = m_lodRenderDistance;
 
         processCompletedLodChunks();
 
@@ -758,6 +757,24 @@ namespace Voxel
         }
 
         processDirtyLodMeshes();
+    }
+
+    void World::setLodRenderDistance(
+        int distance
+    )
+    {
+        m_lodRenderDistance = std::max(0, distance);
+
+        // Force un nouveau scan de streaming LOD pour appliquer
+        // immédiatement la nouvelle distance.
+        m_hasLodStreamedChunk = false;
+    }
+
+    void World::setMaxRenderedLodChunks(
+        int count
+    )
+    {
+        m_maxRenderedLodChunks = count;
     }
 
     long long World::makeChunkKey(
@@ -1208,16 +1225,17 @@ namespace Voxel
             chunk->render();
         }
 
-        const auto isInsideLodZone = [](int offsetX, int offsetZ)
+        const int lodRenderDistance = m_lodRenderDistance;
+
+        const auto isInsideLodZone = [lodRenderDistance](int offsetX, int offsetZ)
         {
             const int distanceSquared = offsetX * offsetX + offsetZ * offsetZ;
 
-            constexpr int LOD_INNER_RADIUS =
+            const int LOD_INNER_RADIUS =
                 WorldGenerationSettings::LOD_START_DISTANCE -
                 WorldGenerationSettings::LOD_FADE_MARGIN;
 
-            constexpr int LOD_OUTER_RADIUS =
-                WorldGenerationSettings::LOD_END_DISTANCE;
+            const int LOD_OUTER_RADIUS = lodRenderDistance;
 
             return distanceSquared > LOD_INNER_RADIUS * LOD_INNER_RADIUS &&
                 distanceSquared <= LOD_OUTER_RADIUS * LOD_OUTER_RADIUS;
@@ -1252,6 +1270,18 @@ namespace Voxel
             return (distance - fadeStart) / (fadeEnd - fadeStart);
         };
 
+        struct VisibleLodChunk
+        {
+            int chunkX;
+            int chunkZ;
+            int distanceSquared;
+            Mesh* mesh;
+            float fadeAlpha;
+        };
+
+        std::vector<VisibleLodChunk> visibleLodChunks;
+        visibleLodChunks.reserve(m_lodChunks.size());
+
         for (auto& [key, lodChunk] : m_lodChunks)
         {
             const int chunkX = static_cast<int>(key >> 32);
@@ -1281,13 +1311,42 @@ namespace Voxel
                 continue;
             }
 
+            visibleLodChunks.push_back({
+                chunkX,
+                chunkZ,
+                offsetX * offsetX + offsetZ * offsetZ,
+                mesh,
+                fadeAlpha
+            });
+        }
+
+        // Limite le nombre de LodChunk rendus par frame (les plus
+        // proches du joueur en priorité) pour maîtriser le coût GPU.
+        if (m_maxRenderedLodChunks >= 0 &&
+            static_cast<int>(visibleLodChunks.size()) > m_maxRenderedLodChunks)
+        {
+            std::partial_sort(
+                visibleLodChunks.begin(),
+                visibleLodChunks.begin() + m_maxRenderedLodChunks,
+                visibleLodChunks.end(),
+                [](const VisibleLodChunk& a, const VisibleLodChunk& b)
+                {
+                    return a.distanceSquared < b.distanceSquared;
+                }
+            );
+
+            visibleLodChunks.resize(m_maxRenderedLodChunks);
+        }
+
+        for (const VisibleLodChunk& visible : visibleLodChunks)
+        {
             const glm::mat4 model =
                 glm::translate(
                     glm::mat4(1.0f),
                     glm::vec3(
-                        static_cast<float>(chunkX * Chunk::WIDTH),
+                        static_cast<float>(visible.chunkX * Chunk::WIDTH),
                         0.0f,
-                        static_cast<float>(chunkZ * Chunk::DEPTH)
+                        static_cast<float>(visible.chunkZ * Chunk::DEPTH)
                     )
                 );
 
@@ -1298,10 +1357,10 @@ namespace Voxel
 
             shader.setFloat(
                 "u_FadeAlpha",
-                fadeAlpha
+                visible.fadeAlpha
             );
 
-            mesh->draw();
+            visible.mesh->draw();
         }
 
         // Réinitialise l'alpha de fondu pour les prochains appels de

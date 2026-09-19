@@ -7,6 +7,7 @@
 #include "../World/World.hpp"
 
 #include "../Voxel/Voxel.hpp"
+#include "../Engine/Profiler.hpp"
 
 
 namespace Voxel
@@ -111,6 +112,7 @@ namespace Voxel
 		const World& world
 	)
 	{
+		PROFILE_SCOPE("Chunk Meshing");
 		m_mesh =
 			VoxelMesher::build(
 				world,

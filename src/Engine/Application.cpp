@@ -12,6 +12,7 @@
 #include "../Voxel/Chunk.hpp"
 #include "../GPU/NoiseCompute.hpp"
 #include "../Player/Player.hpp"
+#include "../Player/GameManager.hpp"
 #include <GLFW/glfw3.h>
 #include <chrono>
 #include <iomanip>
@@ -19,6 +20,7 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <stb_image.h>
+#include "Profiler.hpp"
 
 
 const int WIDTH = 1280;
@@ -29,10 +31,11 @@ const int HEIGHT = 720;
 namespace Voxel
 {
 	Application::Application() : m_window(new Window(WIDTH, HEIGHT, "Voxel Engine")), m_renderer(new Renderer())
-		, m_isRunning(true), m_deltaTime(0.0f), m_input(new Input()), 
-		m_textureAtlas(std::make_unique<Texture>("assets/textures/atlas.png",false))
+		, m_isRunning(true), m_deltaTime(0.0f), m_input(new Input()),
+		m_textureAtlas(std::make_unique<Texture>("assets/textures/atlas.png", false))
 	{
-		m_camera = std::make_unique<Camera>(glm::vec3(0.0f, Chunk::HEIGHT , 3.0f));
+		m_camera = std::make_unique<Camera>(glm::vec3(0.0f, Chunk::HEIGHT, 3.0f));
+		m_gameManager = std::make_unique<GameManager>();
 		m_input->initialize(*m_window);
 		m_renderer->setViewport(m_window->getWidth(), m_window->getHeight());
 
@@ -93,16 +96,12 @@ namespace Voxel
 
 			if (displayTimer >= 0.25f)
 			{
-				const float fps =
-					static_cast<float>(displayedFrames) /
-					displayTimer;
 				const glm::vec3& position = m_camera->getPosition();
 
 				std::cout
 					<< '\r'
 					<< std::fixed
 					<< std::setprecision(1)
-					<< "FPS: " << fps
 					<< " | Camera: ("
 					<< position.x << ", "
 					<< position.y << ", "
@@ -132,20 +131,45 @@ namespace Voxel
 		// - chargement/déchargement du monde
 		// - animations
 
+		profilerTimer += deltaTime;
+
+		frameCount++;
+		fpsTimer += deltaTime;
+
+		if (fpsTimer >= 1.0)
+		{
+			std::cout << std::fixed << std::setprecision(1) << "FPS: " << frameCount << '\n';
+
+			frameCount = 0;
+			fpsTimer = 0.0;
+		}
+		if (profilerTimer >= 1.0)
+		{
+			Profiler::instance().print();
+			Profiler::instance().reset();
+
+			profilerTimer = 0.0;
+		}
+
 		m_camera->update(deltaTime);
 		m_player->update(deltaTime);
-	   m_world->updateStreaming(
+		PROFILE_SCOPE("World::update");
+		m_world->updateStreaming(
 			m_player->getPosition()
 		);
-	   m_world->updateLodStreaming(
+		m_world->updateLodStreaming(
 			m_player->getPosition()
 		);
+
+
 	}
 
 	void Application::render()
 	{
 		const int width = m_window->getWidth();
 		const int height = m_window->getHeight();
+
+		PROFILE_SCOPE("Rendering");
 
 		if (width <= 0 || height <= 0)
 			return;
@@ -171,8 +195,8 @@ namespace Voxel
 		m_shader->setMat4("u_Projection", projection);
 		m_shader->setInt("u_TextureAtlas", 0);
 
-       m_shader->setInt("u_RenderWater", 0);
-       m_world->render(
+		m_shader->setInt("u_RenderWater", 0);
+		m_world->render(
 			view,
 			projection,
 			*m_shader,
@@ -181,7 +205,7 @@ namespace Voxel
 
 		glDepthMask(GL_FALSE);
 		m_shader->setInt("u_RenderWater", 1);
-       m_world->render(
+		m_world->render(
 			view,
 			projection,
 			*m_shader,

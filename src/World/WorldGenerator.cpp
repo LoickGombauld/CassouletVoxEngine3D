@@ -7,6 +7,7 @@
 #include <vector>
 #include <glm/common.hpp>
 #include <iostream>
+#include "../Engine/Profiler.hpp"
 
 namespace Voxel {
 
@@ -176,6 +177,7 @@ namespace Voxel {
 		Chunk& chunk
 	)
 	{
+		PROFILE_SCOPE("Chunk Generation");
 		const auto voxelStart = std::chrono::steady_clock::now();
 		const int originX =
 			chunk.getChunkX() *
@@ -331,7 +333,7 @@ namespace Voxel {
 		m_voxelGenerationTime += std::chrono::steady_clock::now() - voxelStart;
 
 		const auto vegetationStart = std::chrono::steady_clock::now();
-      generateVegetation(chunk, biomeCache);
+	  generateVegetation(chunk, biomeCache, terrainHeights);
 		m_vegetationGenerationTime += std::chrono::steady_clock::now() - vegetationStart;
 
 		generateLake(chunk);
@@ -531,8 +533,9 @@ namespace Voxel {
 	}
 
 	void WorldGenerator::generateVegetation(
-        Chunk& chunk,
-		const std::vector<Biome>& biomeCache
+		Chunk& chunk,
+		const std::vector<Biome>& biomeCache,
+		const std::vector<int>& terrainHeights
 	)
 	{
 		const int originX =
@@ -551,6 +554,24 @@ namespace Voxel {
 		constexpr int MARGIN =
 			WorldGenerationSettings::TREE_GENERATION_MARGIN;
 
+		// Renvoie la hauteur du sol telle qu'elle a été réellement
+		// utilisée pour générer les voxels (hauteur interpolée à partir
+		// des échantillons), afin que les arbres/cactus soient toujours
+		// posés exactement sur le sol. En dehors du chunk courant
+		// (zone de marge), on retombe sur la hauteur brute du bruit.
+		const auto getGroundHeight = [&](int worldX, int worldZ)
+		{
+			const int localX = worldX - originX;
+			const int localZ = worldZ - originZ;
+
+			if (localX >= 0 && localX < Chunk::WIDTH &&
+				localZ >= 0 && localZ < Chunk::DEPTH)
+			{
+				return terrainHeights[localX * Chunk::DEPTH + localZ];
+			}
+
+			return getTerrainHeight(worldX, worldZ);
+		};
 
 		for (
 			int worldX = originX - MARGIN;
@@ -567,7 +588,7 @@ namespace Voxel {
 				if (
 					shouldGenerateTree(
 						worldX,
-                      worldZ,
+					  worldZ,
 						chunk,
 						biomeCache
 					)
@@ -576,13 +597,14 @@ namespace Voxel {
 					generateTree(
 						chunk,
 						worldX,
-						worldZ
+						worldZ,
+						getGroundHeight(worldX, worldZ)
 					);
 				}
 				if (
 					shouldGenerateCactus(
 						worldX,
-                      worldZ,
+					  worldZ,
 						chunk,
 						biomeCache
 					)
@@ -591,7 +613,8 @@ namespace Voxel {
 					generateCactus(
 						chunk,
 						worldX,
-						worldZ
+						worldZ,
+						getGroundHeight(worldX, worldZ)
 					);
 				}
 			}
@@ -601,15 +624,10 @@ namespace Voxel {
 	void WorldGenerator::generateTree(
 		Chunk& chunk,
 		int worldX,
-		int worldZ
+		int worldZ,
+		int groundY
 	)
 	{
-		const int groundY =
-			getTerrainHeight(
-				worldX,
-				worldZ
-			);
-
 		const int trunkHeight =
 			WorldGenerationSettings::TREE_MIN_HEIGHT +
 			static_cast<int>(
@@ -698,16 +716,10 @@ namespace Voxel {
 	void WorldGenerator::generateCactus(
 		Chunk& chunk,
 		int worldX,
-		int worldZ
+		int worldZ,
+		int groundY
 	)
 	{
-		const int groundY =
-			getTerrainHeight(
-				worldX,
-				worldZ
-			);
-
-
 		const int height =
 			WorldGenerationSettings::CACTUS_MIN_HEIGHT +
 			static_cast<int>(

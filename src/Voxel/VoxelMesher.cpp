@@ -8,6 +8,7 @@
 #include "../Renderer/IndexBuffer.hpp"
 #include "../Renderer/Shader.hpp"
 #include "../Voxel/Chunk.hpp"
+#include "../Voxel/Voxel.hpp"
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -371,10 +372,10 @@ namespace Voxel
 						Face face;
 
 						const bool solidA =
-							isSolid(voxelA);
+							Block::BlockRegistry::isSolid(voxelA);
 
 						const bool solidB =
-							isSolid(voxelB);
+							Block::BlockRegistry::isSolid(voxelB);
 
 						const bool waterA =
 							voxelA == Block::Water;
@@ -383,10 +384,10 @@ namespace Voxel
 							voxelB == Block::Water;
 
 						const bool transparentA =
-							isTransparent(voxelA);
+							Block::BlockRegistry::isTransparent(voxelA);
 
 						const bool transparentB =
-							isTransparent(voxelB);
+							Block::BlockRegistry::isTransparent(voxelB);
 
 
 						/*
@@ -970,7 +971,7 @@ namespace Voxel
 		};
 
 		const bool side1 =
-			isSolid(
+			Block::BlockRegistry::isSolid(
 				world.getVoxel(
 					x + side1Offset.x,
 					y + side1Offset.y,
@@ -979,7 +980,7 @@ namespace Voxel
 			);
 
 		const bool side2 =
-			isSolid(
+			Block::BlockRegistry::isSolid(
 				world.getVoxel(
 					x + side2Offset.x,
 					y + side2Offset.y,
@@ -988,7 +989,7 @@ namespace Voxel
 			);
 
 		const bool corner =
-			isSolid(
+			Block::BlockRegistry::isSolid(
 				world.getVoxel(
 					x + cornerOffset.x,
 					y + cornerOffset.y,
@@ -1033,8 +1034,8 @@ namespace Voxel
 		face.normal = normal;
 
 
-		const BlockInfo& info =
-			getBlockInfo(
+		const Block::BlockInfo& info =
+			Block::BlockRegistry::get(
 				face.voxel
 			);
 		const int faceIndex =

@@ -17,6 +17,7 @@ namespace Voxel
 	class Camera;
 	class Texture;
 	class Player;
+	class GameManager;
 
 
 	class Application
@@ -53,5 +54,6 @@ namespace Voxel
 		std::unique_ptr<World> m_world;
 		std::unique_ptr<Texture> m_textureAtlas;
 		std::unique_ptr<Player> m_player;
+		std::unique_ptr<GameManager> m_gameManager;
 	};
 }

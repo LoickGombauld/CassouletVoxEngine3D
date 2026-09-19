@@ -14,6 +14,7 @@
 #include <glm/ext/matrix_float4x4.hpp>
 #include <glm/vec3.hpp>
 #include "../World/WorldGenerator.hpp"
+#include "../World/WorldGenerationSettings.hpp"
 #include "../Voxel/VoxelMesher.hpp"
 #include "../Voxel/LodChunk.hpp"
 namespace Voxel
@@ -83,6 +84,30 @@ namespace Voxel
         void updateLodStreaming(
             const glm::vec3& playerPosition
         );
+
+        // Distance (en chunks) au-delà de laquelle les LodChunk sont
+        // générés/rendus à la place des chunks complets. Permet de
+        // réduire le coût CPU/GPU en abaissant cette distance.
+        void setLodRenderDistance(
+            int distance
+        );
+
+        int getLodRenderDistance() const
+        {
+            return m_lodRenderDistance;
+        }
+
+        // Nombre maximum de LodChunk rendus par frame (triés du plus
+        // proche au plus loin). Une valeur négative signifie qu'aucune
+        // limite n'est appliquée.
+        void setMaxRenderedLodChunks(
+            int count
+        );
+
+        int getMaxRenderedLodChunks() const
+        {
+            return m_maxRenderedLodChunks;
+        }
 
     private:
 
@@ -195,5 +220,10 @@ namespace Voxel
         bool m_hasLodStreamedChunk = false;
         int m_lastLodStreamedChunkX = 0;
         int m_lastLodStreamedChunkZ = 0;
+
+        // Options configurables à l'exécution pour gérer la distance et
+        // le nombre de rendu des chunks non chargés (LodChunk).
+        int m_lodRenderDistance = WorldGenerationSettings::LOD_END_DISTANCE;
+        int m_maxRenderedLodChunks = -1;
     };
 }

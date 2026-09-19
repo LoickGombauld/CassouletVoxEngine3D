@@ -3,24 +3,24 @@
 #include <glm/vec3.hpp>
 #include <glm/fwd.hpp>
 #include <cstdint>
-#include <limits>
 #include <memory>
+
+#include "../Player/PlayerCollider.hpp"
+#include "../Player/PlayerPhysics.hpp"
 
 namespace Voxel
 {
     class World;
     class Camera;
-    class Chunk;
 
-    // Contrôleur physique du joueur : mouvement, gravité, collisions
-    // AABB contre le monde voxel, saut et interaction (casser/poser).
+    // Contrôleur du joueur : délègue la physique/collision à
+    // PlayerPhysics/PlayerCollider et gère les entrées, la caméra et
+    // l'interaction (casser/poser des blocs).
     //
     // Player
     //  ?
-    //  ??? Movement
-    //  ??? Gravity
-    //  ??? Collision (Sol, Murs, Plafond, Blocs voisins)
-    //  ??? Jump
+    //  ??? PlayerPhysics (Movement, Gravity, Jump, résolution collision)
+    //  ??? PlayerCollider (Collision AABB, raycast, test voxel)
     //  ??? Interaction (Break block / Place block)
     class Player
     {
@@ -47,7 +47,7 @@ namespace Voxel
 
         bool isOnGround() const
         {
-            return m_onGround;
+            return m_physics.isOnGround();
         }
 
     private:
@@ -56,32 +56,7 @@ namespace Voxel
             float deltaTime
         );
 
-        void applyGravity(
-            float deltaTime
-        );
-
         void handleJump();
-
-        void moveAndCollide(
-            float deltaTime
-        );
-
-        void resolveAxisCollision(
-            glm::vec3& position,
-            glm::vec3& velocity,
-            int axis,
-            float delta
-        );
-
-        bool isBlockSolid(
-            int worldX,
-            int worldY,
-            int worldZ
-        ) const;
-
-        bool collidesAt(
-            const glm::vec3& position
-        ) const;
 
         void handleInteraction();
 
@@ -104,7 +79,6 @@ namespace Voxel
 
         // Position des pieds du joueur (centre de la base de l'AABB).
         glm::vec3 m_position;
-        glm::vec3 m_velocity{ 0.0f, 0.0f, 0.0f };
 
         // Dimensions de la boîte de collision du joueur.
         float m_width = 0.6f;
@@ -117,17 +91,11 @@ namespace Voxel
         float m_gravity = 24.0f;
         float m_maxFallSpeed = 60.0f;
 
-        bool m_onGround = false;
+        PlayerCollider m_collider;
+        PlayerPhysics m_physics;
 
         // Bloc utilisé pour poser (interaction).
         std::uint16_t m_selectedBlock;
-
-        // Cache du dernier chunk consulté lors des tests de collision,
-        // pour éviter de refaire une recherche dans la table des chunks
-        // du monde pour chaque voxel testé (souvent dans le même chunk).
-        mutable int m_cachedChunkX = std::numeric_limits<int>::min();
-        mutable int m_cachedChunkZ = std::numeric_limits<int>::min();
-        mutable const Chunk* m_cachedChunk = nullptr;
 
         float m_interactionCooldown = 0.0f;
         float m_interactionDelay = 0.2f;

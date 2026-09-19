@@ -77,20 +77,23 @@ namespace Voxel
 		std::chrono::nanoseconds m_voxelGenerationTime{};
 		std::chrono::nanoseconds m_vegetationGenerationTime{};
 		void generateVegetation(
-            Chunk& chunk,
-			const std::vector<Biome>& biomeCache
+			Chunk& chunk,
+			const std::vector<Biome>& biomeCache,
+			const std::vector<int>& terrainHeights
 		);
 
 		void generateTree(
 			Chunk& chunk,
 			int worldX,
-			int worldZ
+			int worldZ,
+			int groundY
 		);
 
 		void generateCactus(
 			Chunk& chunk,
 			int worldX,
-			int worldZ
+			int worldZ,
+			int groundY
 		);
 
 		bool shouldGenerateTree(

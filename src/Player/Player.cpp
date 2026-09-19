@@ -2,7 +2,6 @@
 #include "../World/World.hpp"
 #include "../Camera/Camera.hpp"
 #include "../Voxel/Voxel.hpp"
-#include "../Voxel/Chunk.hpp"
 #include "../Input/Input.hpp"
 
 #include <GLFW/glfw3.h>
@@ -23,6 +22,8 @@ namespace Voxel
         : m_world(world),
         m_camera(camera),
         m_position(spawnPosition),
+        m_collider(world, m_width, m_height),
+        m_physics(m_collider),
         m_selectedBlock(Block::Stone)
     {
         m_camera.setPosition(
@@ -47,8 +48,8 @@ namespace Voxel
     {
         handleMovementInput(deltaTime);
         handleJump();
-        applyGravity(deltaTime);
-        moveAndCollide(deltaTime);
+        m_physics.applyGravity(m_gravity, m_maxFallSpeed, deltaTime);
+        m_physics.moveAndCollide(m_position, deltaTime);
 
         m_camera.setPosition(
             m_position + glm::vec3(0.0f, m_eyeHeight, 0.0f)
@@ -66,9 +67,8 @@ namespace Voxel
         float deltaTime
     )
     {
-        // Le déplacement horizontal suit l'orientation de la caméra
-        // (yaw uniquement), pour ne pas voler quand le joueur regarde
-        // vers le haut/bas.
+        (void)deltaTime;
+
         const float yawRadians = glm::radians(m_camera.getYaw());
 
         const glm::vec3 forward = glm::normalize(
@@ -117,194 +117,14 @@ namespace Voxel
             moveDirection = glm::normalize(moveDirection);
         }
 
-        m_velocity.x = moveDirection.x * speed;
-        m_velocity.z = moveDirection.z * speed;
+        m_physics.setHorizontalMove(moveDirection, speed);
     }
 
     void Player::handleJump()
     {
-        if (m_onGround && Input::isKeyDown(GLFW_KEY_SPACE))
+        if (m_physics.isOnGround() && Input::isKeyDown(GLFW_KEY_SPACE))
         {
-            m_velocity.y = m_jumpVelocity;
-            m_onGround = false;
-        }
-    }
-
-    void Player::applyGravity(
-        float deltaTime
-    )
-    {
-        m_velocity.y -= m_gravity * deltaTime;
-
-        if (m_velocity.y < -m_maxFallSpeed)
-        {
-            m_velocity.y = -m_maxFallSpeed;
-        }
-    }
-
-    namespace
-    {
-        int floorDiv(int value, int divisor)
-        {
-            int result = value / divisor;
-            int remainder = value % divisor;
-
-            if (remainder != 0 && remainder < 0)
-            {
-                --result;
-            }
-
-            return result;
-        }
-
-        int positiveModulo(int value, int divisor)
-        {
-            int result = value % divisor;
-
-            if (result < 0)
-            {
-                result += divisor;
-            }
-
-            return result;
-        }
-    }
-
-    bool Player::isBlockSolid(
-        int worldX,
-        int worldY,
-        int worldZ
-    ) const
-    {
-        if (worldY < 0 || worldY >= Chunk::HEIGHT)
-        {
-            return false;
-        }
-
-        const int chunkX = floorDiv(worldX, Chunk::WIDTH);
-        const int chunkZ = floorDiv(worldZ, Chunk::DEPTH);
-
-        // Cache du dernier chunk consulté : les tests de collision AABB
-        // testent plusieurs voxels qui appartiennent souvent au même
-        // chunk, ce qui évite de refaire une recherche par hash dans
-        // World::m_chunks pour chaque voxel.
-        if (chunkX != m_cachedChunkX || chunkZ != m_cachedChunkZ || !m_cachedChunk)
-        {
-            m_cachedChunk = m_world.getChunk(chunkX, chunkZ);
-            m_cachedChunkX = chunkX;
-            m_cachedChunkZ = chunkZ;
-        }
-
-        if (!m_cachedChunk)
-        {
-            return false;
-        }
-
-        const int localX = positiveModulo(worldX, Chunk::WIDTH);
-        const int localZ = positiveModulo(worldZ, Chunk::DEPTH);
-
-        const std::uint16_t voxel =
-            m_cachedChunk->get(localX, worldY, localZ);
-
-        return voxel != Block::Air && voxel != Block::Water;
-    }
-
-    bool Player::collidesAt(
-        const glm::vec3& position
-    ) const
-    {
-        const float halfWidth = m_width * 0.5f;
-
-        const int minX = static_cast<int>(std::floor(position.x - halfWidth));
-        const int maxX = static_cast<int>(std::floor(position.x + halfWidth));
-        const int minY = static_cast<int>(std::floor(position.y));
-        const int maxY = static_cast<int>(std::floor(position.y + m_height));
-        const int minZ = static_cast<int>(std::floor(position.z - halfWidth));
-        const int maxZ = static_cast<int>(std::floor(position.z + halfWidth));
-
-        for (int x = minX; x <= maxX; ++x)
-        {
-            for (int y = minY; y <= maxY; ++y)
-            {
-                for (int z = minZ; z <= maxZ; ++z)
-                {
-                    if (isBlockSolid(x, y, z))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
-
-    void Player::resolveAxisCollision(
-        glm::vec3& position,
-        glm::vec3& velocity,
-        int axis,
-        float delta
-    )
-    {
-        glm::vec3 candidate = position;
-        candidate[axis] += delta;
-
-        if (!collidesAt(candidate))
-        {
-            position = candidate;
-            return;
-        }
-
-        // Collision détectée : on annule la vitesse sur cet axe et on
-        // s'arrête juste avant le bloc (résolution simple par pas).
-        velocity[axis] = 0.0f;
-
-        if (axis == 1 && delta < 0.0f)
-        {
-            m_onGround = true;
-        }
-    }
-
-    void Player::moveAndCollide(
-        float deltaTime
-    )
-    {
-        m_onGround = false;
-
-        // Résolution axe par axe pour gérer correctement le sol, les
-        // murs, le plafond et les blocs voisins sans coincer le joueur.
-        resolveAxisCollision(
-            m_position,
-            m_velocity,
-            0,
-            m_velocity.x * deltaTime
-        );
-
-        resolveAxisCollision(
-            m_position,
-            m_velocity,
-            1,
-            m_velocity.y * deltaTime
-        );
-
-        resolveAxisCollision(
-            m_position,
-            m_velocity,
-            2,
-            m_velocity.z * deltaTime
-        );
-
-        // Vérifie explicitement si le joueur repose sur le sol (pour le
-        // cas où la vitesse verticale est nulle mais le joueur est posé).
-        if (!m_onGround)
-        {
-            glm::vec3 belowPosition = m_position;
-            belowPosition.y -= 0.05f;
-
-            if (collidesAt(belowPosition))
-            {
-                m_onGround = true;
-            }
+            m_physics.jump(m_jumpVelocity);
         }
     }
 
@@ -328,35 +148,13 @@ namespace Voxel
             )
         );
 
-        constexpr float STEP = 0.05f;
-
-        glm::ivec3 previousBlock(
-            static_cast<int>(std::floor(origin.x)),
-            static_cast<int>(std::floor(origin.y)),
-            static_cast<int>(std::floor(origin.z))
+        return m_collider.raycastBlock(
+            origin,
+            direction,
+            maxDistance,
+            outHitBlock,
+            outPreviousBlock
         );
-
-        for (float distance = 0.0f; distance <= maxDistance; distance += STEP)
-        {
-            const glm::vec3 samplePosition = origin + direction * distance;
-
-            const glm::ivec3 blockPosition(
-                static_cast<int>(std::floor(samplePosition.x)),
-                static_cast<int>(std::floor(samplePosition.y)),
-                static_cast<int>(std::floor(samplePosition.z))
-            );
-
-            if (isBlockSolid(blockPosition.x, blockPosition.y, blockPosition.z))
-            {
-                outHitBlock = blockPosition;
-                outPreviousBlock = previousBlock;
-                return true;
-            }
-
-            previousBlock = blockPosition;
-        }
-
-        return false;
     }
 
     void Player::breakBlock()
@@ -387,7 +185,6 @@ namespace Voxel
             return;
         }
 
-        // Empêche de poser un bloc à l'intérieur du joueur.
         const glm::vec3 placedCenter(
             static_cast<float>(previousBlock.x) + 0.5f,
             static_cast<float>(previousBlock.y) + 0.5f,

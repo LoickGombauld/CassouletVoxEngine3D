@@ -6,6 +6,7 @@
 #include <random>
 #include <iostream>
 #include <filesystem>
+#include "../Engine/Profiler.hpp"
 
 namespace Voxel
 {
@@ -410,6 +411,8 @@ void main()
     {
         if (!m_computeProgram || output.empty())
             return;
+
+        PROFILE_SCOPE("GPU Mesh Upload");
 
         // Créer ou réutiliser le SSBO
         if (!m_writeSSBO)

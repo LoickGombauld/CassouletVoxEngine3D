@@ -24,7 +24,7 @@ namespace Voxel::WorldGenerationSettings
     inline constexpr int LOD_START_DISTANCE =
         SIMULATION_DISTANCE + STREAMING_UNLOAD_MARGIN;
 
-    inline constexpr int LOD_END_DISTANCE = RENDER_DISTANCE * 2;
+    inline constexpr int LOD_END_DISTANCE = RENDER_DISTANCE * 1.25f;
 
     // Largeur (en chunks) de la zone de fondu croisé entre les chunks
     // complets et les LodChunk, centrée sur LOD_START_DISTANCE.
